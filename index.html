@@ -1,0 +1,3161 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PSB Teacher - Mark Sheet &amp; Paper Print</title>
+
+<!-- ===================================================================
+     [बदलाव 1] KaTeX लाइब्रेरी जोड़ी गई (LaTeX Math Renderer)
+     मकसद: Paper/Marksheet एडिटर में लिखा LaTeX कोड (जैसे \frac, \sqrt, \vert)
+     Print/PDF के समय raw text की जगह असली गणितीय चिह्नों (√, ½, आदि) में
+     दिखे। katex.min.css से चिह्नों की स्टाइलिंग आती है, katex.min.js
+     मुख्य रेंडरिंग इंजन है, और auto-render.min.js पूरे HTML ब्लॉक के अंदर
+     $...$ / $$...$$ जैसे delimiters ढूंढ कर अपने आप रेंडर कर देता है।
+     ==================================================================== -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+
+<!-- [बदलाव 9] Razorpay Checkout — Premium Payment के लिए -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<!-- [बदलाव 24] Chart.js — Class Performance Analytics (Graphs) के लिए -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+
+<style>
+  :root{
+    --primary:#1e4d8c;
+    --primary-dark:#123a6b;
+    --accent:#ff8c00;
+    --bg:#f2f5fa;
+    --card:#ffffff;
+    --border:#d6dde8;
+    --danger:#d9364a;
+    --success:#1e8e5a;
+    --text:#1b2430;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);}
+  .topbar{background:linear-gradient(120deg,var(--primary-dark),var(--primary) 55%,#2a63b7);color:#fff;padding:14px 22px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;box-shadow:0 3px 10px rgba(18,58,107,.25);position:sticky;top:0;z-index:50;}
+  .topbar h1{margin:0;font-size:21px;letter-spacing:.3px;display:flex;align-items:center;gap:8px;}
+  .topbar h1 .brand-badge{background:var(--accent);color:#fff;font-size:11px;font-weight:800;padding:2px 8px;border-radius:20px;letter-spacing:.5px;}
+  .topbar .who{font-size:13px;opacity:.92;}
+  .status-pill{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;display:inline-flex;align-items:center;gap:5px;}
+  .status-pill.open{background:#e6f6ee;color:var(--success);}
+  .status-pill.closed{background:#fde8ea;color:var(--danger);}
+  .app-blocked-wrap{max-width:480px;margin:80px auto;text-align:center;padding:0 16px;}
+  .app-blocked-wrap .icon{font-size:54px;}
+  .btn{cursor:pointer;border:none;border-radius:8px;padding:10px 16px;font-size:14px;font-weight:600;transition:.15s;}
+  .btn-primary{background:var(--primary);color:#fff;}
+  .btn-primary:hover{background:var(--primary-dark);}
+  .btn-accent{background:var(--accent);color:#fff;}
+  .btn-accent:hover{opacity:.9;}
+  .btn-outline{background:#fff;color:var(--primary);border:1px solid var(--primary);}
+  .btn-danger{background:var(--danger);color:#fff;}
+  .btn-sm{padding:6px 10px;font-size:12px;border-radius:6px;}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .screen{display:none;max-width:1000px;margin:20px auto;padding:0 16px;}
+  .screen.active{display:block;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 2px 6px rgba(0,0,0,.04);}
+  .center-card{max-width:440px;margin:50px auto;}
+  label{display:block;font-size:13px;font-weight:600;margin:10px 0 4px;color:#3a4658;}
+  input[type=text],input[type=password],input[type=number],select,textarea{
+    width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#fbfcfe;
+  }
+  textarea{resize:vertical;min-height:70px;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;}
+  .row > *{flex:1;min-width:150px;}
+  .dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;margin-top:20px;}
+  .dash-item{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px 16px;text-align:center;cursor:pointer;transition:.15s;}
+  .dash-item:hover{transform:translateY(-3px);box-shadow:0 6px 14px rgba(30,77,140,.15);border-color:var(--primary);}
+  .dash-item .icon{font-size:34px;margin-bottom:8px;}
+  .dash-item .label{font-weight:700;color:var(--primary-dark);}
+  .toolbar{display:flex;gap:6px;flex-wrap:wrap;background:#eef2f9;border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:8px;}
+  .toolbar button{border:1px solid var(--border);background:#fff;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:13px;}
+  .toolbar button:hover{background:var(--primary);color:#fff;}
+  .toolbar input[type=color]{width:34px;height:32px;border:1px solid var(--border);border-radius:6px;padding:0;cursor:pointer;}
+  .toolbar select{width:auto;padding:6px;}
+  #editorArea{min-height:320px;border:1px solid var(--border);border-radius:8px;padding:16px;background:#fff;outline:none;}
+  .subject-row{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;align-items:center;margin-bottom:6px;}
+  .subject-row input{margin:0;}
+  .msg{padding:10px 14px;border-radius:8px;font-size:13px;margin:10px 0;}
+  .msg-error{background:#fde8ea;color:var(--danger);border:1px solid #f7c3ca;}
+  .msg-success{background:#e6f6ee;color:var(--success);border:1px solid #b9e6cf;}
+  .msg-info{background:#eaf1fb;color:var(--primary-dark);border:1px solid #cfdff5;}
+  /* [बदलाव 16] ग्लोबल Error Banner — सबसे ऊपर, सभी स्क्रीन के ऊपर, लाल अक्षरों में */
+  #globalErrorBanner{
+    position:fixed;top:0;left:0;right:0;z-index:9999;
+    background:#fde8ea;color:var(--danger);border-bottom:2px solid var(--danger);
+    padding:10px 40px 10px 14px;font-size:13px;font-weight:600;
+    max-height:40vh;overflow-y:auto;white-space:pre-wrap;
+  }
+  #globalErrorBanner .geb-close{
+    position:absolute;top:6px;right:10px;cursor:pointer;font-weight:800;color:var(--danger);
+    background:none;border:none;font-size:16px;
+  }
+  @media print{ #globalErrorBanner{display:none !important;} }
+  .back-link{display:inline-block;margin-bottom:14px;color:var(--primary);cursor:pointer;font-weight:600;font-size:14px;}
+  .back-link:hover{text-decoration:underline;}
+  table.list-table{width:100%;border-collapse:collapse;font-size:13px;}
+  table.list-table th,table.list-table td{border:1px solid var(--border);padding:8px;text-align:left;}
+  table.list-table th{background:#eef2f9;}
+  .tabs{display:flex;gap:8px;margin-bottom:14px;}
+  .tab-btn{padding:8px 16px;border-radius:8px 8px 0 0;border:1px solid var(--border);background:#eef2f9;cursor:pointer;font-weight:600;font-size:13px;}
+  .tab-btn.active{background:var(--primary);color:#fff;}
+  .hidden{display:none !important;}
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:999;}
+  .modal-box{background:#fff;border-radius:12px;padding:20px;max-width:420px;width:90%;}
+  .footer-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap;}
+  .section-title{margin:0 0 10px;color:var(--primary-dark);font-size:16px;border-bottom:2px solid var(--border);padding-bottom:8px;}
+  .link-btn{background:none;border:none;color:var(--primary);cursor:pointer;font-weight:600;font-size:13px;padding:4px 0;text-align:left;}
+  .link-btn:hover{text-decoration:underline;}
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;}
+  .badge-pass{background:#e6f6ee;color:var(--success);}
+  .badge-fail{background:#fde8ea;color:var(--danger);}
+  .reg-highlight{background:#eaf1fb;border:1px dashed var(--primary);border-radius:8px;padding:10px 14px;font-size:14px;margin:10px 0;}
+
+  /* ---- Print Styles ---- */
+  #printArea{display:none;}
+  .print-sheet{max-width:800px;margin:0 auto 26px;padding:30px;border:2px solid #333;font-family:'Times New Roman',serif;page-break-after:always;}
+  .print-sheet:last-child{page-break-after:auto;}
+  .print-sheet h2{text-align:center;margin:0 0 4px;color:#1e4d8c;}
+  .print-sheet .sub{text-align:center;font-size:13px;margin-bottom:14px;color:#555;}
+  .print-sheet table{width:100%;border-collapse:collapse;margin-top:10px;}
+  .print-sheet table td,.print-sheet table th{border:1px solid #333;padding:6px 8px;font-size:14px;}
+  .print-details{display:flex;justify-content:space-between;flex-wrap:wrap;margin-bottom:10px;font-size:14px;}
+  .print-details div{width:48%;padding:2px 0;}
+  .print-header-band{border-bottom:1px solid #999;margin-bottom:10px;padding-bottom:8px;font-size:12px;color:#444;display:flex;justify-content:space-between;flex-wrap:wrap;}
+  .print-footer-band{border-top:1px solid #999;margin-top:24px;padding-top:8px;font-size:11px;color:#555;}
+  /* [बदलाव 3] Powered-by footer branding line — बहुत छोटा और हल्के रंग का, ताकि पेपर की पढ़ाई में बाधा न बने */
+  .print-powered-footer{text-align:center;font-size:9px;color:#9aa5b3;margin-top:10px;letter-spacing:.3px;}
+  /* ==================================================================
+     [बदलाव 5] Ad Placement System (Adsterra) — नए Ad Slots के लिए CSS
+     .psb-ad-slot: हर नई जगह लगे विज्ञापन का सामान्य कंटेनर (सभी जगह
+     इस्तेमाल होता है ताकि refreshAdVisibility() एक ही जगह से सबको
+     दिखा/छुपा सके — Premium यूज़र को कोई भी नया Ad नहीं दिखेगा)।
+     ================================================================== */
+  .psb-ad-slot{margin:14px 0;text-align:center;}
+  .psb-ad-slot-infeed{border:1px dashed var(--border);border-radius:8px;padding:10px;background:#fafbfc;}
+  .psb-ad-label{font-size:11px;color:#8892a0;margin-top:4px;}
+  /* Sticky Bottom Banner — सभी स्क्रीन पर नीचे चिपका रहेगा (Global Footer Ad) */
+  /* [बदलाव 22] Admin की Announcements — Dashboard पर ऊपर Scrolling Ticker (Marquee) की तरह */
+  .announce-ticker-wrap{overflow:hidden;white-space:nowrap;background:#fff7e0;border:1px solid #f0d98c;border-radius:8px;padding:9px 0;margin:0 0 14px;}
+  .announce-ticker-track{display:inline-block;padding-left:100%;animation:announce-scroll 22s linear infinite;}
+  .announce-ticker-track:hover{animation-play-state:paused;}
+  @keyframes announce-scroll{0%{transform:translateX(0);}100%{transform:translateX(-100%);}}
+  .announce-item{display:inline-block;margin-right:70px;font-size:13px;color:#8a6400;font-weight:600;text-decoration:none;}
+  .announce-item b{color:#a8710a;}
+  @media print{ .announce-ticker-wrap{display:none !important;} }
+  /* [बदलाव 24] Class Analytics — Stat Cards की Grid */
+  .stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:14px 0;}
+  .stat-box{background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;}
+  .stat-box .num{font-size:22px;font-weight:800;color:var(--primary-dark);}
+  .stat-box .lbl{font-size:12px;color:#666;margin-top:4px;}
+  #stickyAdBar{
+    position:fixed;left:0;right:0;bottom:0;z-index:500;
+    background:#fff;border-top:1px solid var(--border);
+    padding:4px 8px 2px;margin:0;
+    box-shadow:0 -2px 8px rgba(0,0,0,0.08);
+  }
+  /* Sticky bar के नीचे छुप जाने से बचाने के लिए पेज में थोड़ी जगह छोड़ी */
+  /* [बदलाव 12 - बग फिक्स] यह पहले 64px था, लेकिन Sticky Bar में 728x90 (90px ऊँचा) बैनर
+     लगा है — 64px कम पड़ने से बैनर पेज के निचले हिस्से के ऊपर बैठ जाता था और वहाँ मौजूद
+     बटन (जैसे Login स्क्रीन का "Continue with Google") की क्लिक बीच में ही रुक जाती थी। */
+  body{padding-bottom:100px;}
+  .result-badge{font-weight:bold;font-size:18px;text-align:center;margin-top:14px;padding:8px;border-radius:6px;}
+  .result-pass{background:#e6f6ee;color:var(--success);}
+  .result-fail{background:#fde8ea;color:var(--danger);}
+  .sign-row{display:flex;justify-content:space-between;margin-top:50px;font-size:13px;}
+
+  @media print{
+    body *{visibility:hidden;}
+    #printArea, #printArea *{visibility:visible;}
+    #printArea{display:block;position:absolute;top:0;left:0;width:100%;}
+    /* Force browsers to actually print low-opacity / light colours instead of
+       stripping them for "ink saving" — this was why the background/watermark
+       name was disappearing on the printed page. */
+    *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important; }
+    /* [बदलाव 5] Print के समय Sticky Ad Bar और बाकी सभी नए Ad Slots पूरी तरह छिप जाएँ */
+    #stickyAdBar, .psb-ad-slot{display:none !important;}
+  }
+
+  /* ---- Watermark (diagonal background text on printed sheets) ---- */
+  .print-sheet{position:relative;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .print-watermark{
+    position:absolute;top:50%;left:50%;
+    transform:translate(-50%,-50%) rotate(-35deg);
+    font-size:46px;font-weight:800;color:rgba(30,77,140,0.16);
+    white-space:nowrap;pointer-events:none;z-index:0;user-select:none;
+    letter-spacing:2px;-webkit-print-color-adjust:exact;print-color-adjust:exact;
+  }
+  .print-sheet > *:not(.print-watermark){position:relative;z-index:1;}
+  .print-top-teacher-line{
+    font-size:12px;font-weight:700;color:#1e4d8c;text-align:center;
+    border-bottom:1px dashed #9ab0cf;padding-bottom:6px;margin-bottom:8px;
+  }
+
+  /* ---- Google Sign-in Button ---- */
+  .btn-google{
+    background:#fff;color:#3c4043;border:1px solid #d6dde8;
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    width:100%;
+  }
+  .btn-google:hover{background:#f7f9fc;}
+  .btn-google svg{width:18px;height:18px;}
+  .divider-or{display:flex;align-items:center;gap:10px;color:#8892a0;font-size:12px;margin:12px 0;}
+  .divider-or::before,.divider-or::after{content:"";flex:1;height:1px;background:var(--border);}
+</style>
+</head>
+<body>
+<!-- [बदलाव 16] ग्लोबल Error Banner — ऐप में कहीं भी कोई Error आए (Login सहित), यह
+     लाल अक्षरों में ऊपर दिखेगा, चाहे वह Error किसी भी स्क्रीन या फ़ंक्शन से क्यों न आया हो। -->
+<div id="globalErrorBanner" class="hidden"></div>
+
+<div class="topbar">
+  <h1>📘 PSB Teacher <span class="brand-badge">PRO</span></h1>
+  <div id="submissionStatusPill" class="status-pill hidden"></div>
+  <div id="planStatusPill" class="status-pill hidden" style="cursor:pointer;" onclick="openUpgradeScreen()"></div>
+  <div id="topbarUser" class="who"></div>
+  <button class="btn btn-outline btn-sm hidden" id="logoutBtn" onclick="logoutTeacher()">Logout</button>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN: APP DISABLED BY ADMIN                                 -->
+<!-- ============================================================ -->
+<div class="screen" id="screenAppBlocked">
+  <div class="app-blocked-wrap card">
+    <div class="icon">🚫</div>
+    <h2 style="color:var(--danger);">यह ऐप अभी बंद है</h2>
+    <p style="color:#666;">Admin ने PSB Teacher App को अभी के लिए बंद कर दिया है। कृपया कुछ समय बाद पुनः कोशिश करें।</p>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN: LOGIN                                                 -->
+<!-- ============================================================ -->
+<div class="screen active" id="screenLogin">
+  <div class="card center-card">
+    <h2 style="text-align:center;color:var(--primary-dark);">Teacher Login</h2>
+    <div id="loginMsg"></div>
+    <!-- [बदलाव 13] पुराना Login सिस्टम वापस डाला गया — Mobile/Password + Google दोनों विकल्प,
+         क्योंकि Google-only Login Mobile/In-app Browser में भरोसेमंद साबित नहीं हुआ। -->
+    <label>Mobile Number</label>
+    <input type="text" id="loginNumber" placeholder="10 अंकों का मोबाइल नंबर" maxlength="10">
+    <label>Password</label>
+    <input type="password" id="loginPassword" placeholder="Password डालें">
+    <div class="footer-actions" style="justify-content:center;margin-top:16px;">
+      <button class="btn btn-primary" style="width:100%;" onclick="handleLogin()">Login</button>
+    </div>
+    <div class="divider-or">OR</div>
+    <button class="btn btn-google" onclick="loginWithGoogle()">
+      <svg viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6 29.5 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.4 0 10.3-1.9 14.1-5.3l-6.5-5.5C29.5 34.8 26.9 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5c3.3 6.5 10 11 17.8 11z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.3-4.1 5.7l6.5 5.5C41.6 35.9 44 30.3 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>
+      Login with Google
+    </button>
+    <div style="text-align:center;margin-top:14px;display:flex;flex-direction:column;gap:6px;">
+      <button class="link-btn" style="text-align:center;" onclick="openForgotPasswordScreen()">Forgot Password?</button>
+      <button class="btn btn-outline" onclick="openRegisterScreen()">Create Account</button>
+    </div>
+  </div>
+  <!-- [बदलाव 15] Login स्क्रीन से Ad हटा दिया गया — यह पहली स्क्रीन है, यहाँ Ad नहीं दिखेगा -->
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN: CREATE ACCOUNT                                        -->
+<!-- ============================================================ -->
+<div class="screen" id="screenRegister">
+  <div class="card center-card" style="max-width:520px;">
+    <span class="back-link" onclick="showScreen('screenLogin')">&larr; Login पर वापस जाएं</span>
+    <h2 style="text-align:center;color:var(--primary-dark);">Create Account</h2>
+    <div id="registerMsg"></div>
+    <label>Name</label>
+    <input type="text" id="regName" placeholder="अपना नाम लिखें">
+    <label>Mobile Number</label>
+    <input type="text" id="regNumber" placeholder="10 अंकों का मोबाइल नंबर" maxlength="10">
+    <label>Email Address</label>
+    <input type="text" id="regEmail" placeholder="आपका ईमेल (Login व Password Reset के लिए ज़रूरी)">
+    <label>Teacher Type</label>
+    <select id="regTeacherType" onchange="toggleDiseCodeField()">
+      <option value="School">School Teacher</option>
+      <option value="Coaching">Coaching Teacher</option>
+    </select>
+    <div id="regDiseBox">
+      <label>DISE Code</label>
+      <input type="text" id="regDiseCode" placeholder="School का DISE Code">
+    </div>
+    <label id="regInstituteLabel">School / Coaching का नाम</label>
+    <input type="text" id="regInstitute" placeholder="Institute का नाम">
+    <label>Password</label>
+    <input type="password" id="regPassword" placeholder="Password बनाएं">
+    <label>Address</label>
+    <textarea id="regAddress" placeholder="पूरा पता लिखें"></textarea>
+    <label>Referral Code (अगर किसी दोस्त ने भेजा है — वैकल्पिक)</label>
+    <input type="text" id="regReferralCode" placeholder="जैसे: TCH123456">
+    <div class="footer-actions" style="justify-content:center;margin-top:16px;">
+      <button class="btn btn-primary" style="width:100%;" onclick="handleRegister()">Create Account</button>
+    </div>
+    <div class="divider-or">OR</div>
+    <button class="btn btn-google" onclick="loginWithGoogle()">
+      <svg viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6 29.5 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.4 0 10.3-1.9 14.1-5.3l-6.5-5.5C29.5 34.8 26.9 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5c3.3 6.5 10 11 17.8 11z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.3-4.1 5.7l6.5 5.5C41.6 35.9 44 30.3 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>
+      Sign up with Google
+    </button>
+  </div>
+  <!-- [बदलाव 5] Register स्क्रीन Ad — फॉर्म बॉक्स के ठीक नीचे (320x50 Banner) -->
+  <div id="adSlotRegister" class="psb-ad-slot psb-ad-slot-infeed"></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN: FORGOT PASSWORD                                       -->
+<!-- ============================================================ -->
+<div class="screen" id="screenForgotPassword">
+  <div class="card center-card" style="max-width:480px;">
+    <span class="back-link" onclick="showScreen('screenLogin')">&larr; Login पर वापस जाएं</span>
+    <h2 style="text-align:center;color:var(--primary-dark);">Forgot Password</h2>
+    <div id="fpMsg"></div>
+    <div id="fpFormWrap">
+      <label>Registered Email Address</label>
+      <input type="text" id="fpEmail" placeholder="आपका Registered ईमेल डालें">
+      <div class="footer-actions" style="justify-content:center;margin-top:16px;">
+        <button class="btn btn-primary" style="width:100%;" onclick="submitForgotPassword()">Send Reset Link</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN: COMPLETE PROFILE (shown once, only for new Google sign-ins) -->
+<!-- ============================================================ -->
+<div class="screen" id="screenCompleteProfile">
+  <div class="card center-card" style="max-width:520px;">
+    <h2 style="text-align:center;color:var(--primary-dark);">अपनी Profile पूरी करें</h2>
+    <p style="text-align:center;font-size:13px;color:#666;">आपने Google से Sign-in किया है। जारी रखने के लिए कृपया कुछ जानकारी भरें।</p>
+    <div id="cpMsg"></div>
+    <label>Name</label>
+    <input type="text" id="cpName">
+    <label>Mobile Number</label>
+    <input type="text" id="cpNumber" placeholder="10 अंकों का मोबाइल नंबर" maxlength="10">
+    <label>Teacher Type</label>
+    <select id="cpTeacherType" onchange="toggleCpDiseCodeField()">
+      <option value="School">School Teacher</option>
+      <option value="Coaching">Coaching Teacher</option>
+    </select>
+    <div id="cpDiseBox">
+      <label>DISE Code</label>
+      <input type="text" id="cpDiseCode" placeholder="School का DISE Code">
+    </div>
+    <label id="cpInstituteLabel">School / Coaching का नाम</label>
+    <input type="text" id="cpInstitute">
+    <label>Address</label>
+    <textarea id="cpAddress"></textarea>
+    <!-- [बदलाव 7] वैकल्पिक Referral Code फील्ड — Google Sign-in वाले नए Teachers के लिए -->
+    <label>Referral Code (अगर किसी दोस्त ने भेजा है — वैकल्पिक, खाली भी छोड़ सकते हैं)</label>
+    <input type="text" id="cpReferralCode" placeholder="जैसे: TCH123456">
+    <div class="footer-actions" style="justify-content:center;margin-top:16px;">
+      <button class="btn btn-primary" style="width:100%;" onclick="submitCompleteProfile()">Save &amp; Continue</button>
+    </div>
+  </div>
+  <!-- [बदलाव 5] Account बनाने वाली स्क्रीन पर Ad — फॉर्म बॉक्स के ठीक नीचे (320x50 Banner) -->
+  <div id="adSlotCompleteProfile" class="psb-ad-slot psb-ad-slot-infeed"></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN: LOADING (shown briefly while Firebase Auth session restores) -->
+<!-- ============================================================ -->
+<div class="screen" id="screenLoading">
+  <div class="card center-card" style="text-align:center;">
+    <p style="color:#666;">लोड हो रहा है...</p>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN: DASHBOARD                                             -->
+<!-- ============================================================ -->
+<div class="screen" id="screenDashboard">
+  <!-- [बदलाव 22] Admin की भेजी Announcements यहाँ Scrolling Ticker में दिखेंगी -->
+  <div id="announceTickerWrap" class="announce-ticker-wrap hidden">
+    <div class="announce-ticker-track" id="announceTickerTrack"></div>
+  </div>
+  <div id="adsterraBox" class="card hidden" style="text-align:center;">
+    <!-- यहाँ अपना Adsterra Banner/Native ad code paste करें (Free plan वालों को दिखेगा, Premium वालों से hidden रहेगा) -->
+    <p style="font-size:12px;color:#8892a0;">Advertisement</p>
+  </div>
+  <div class="dash-grid">
+    <div class="dash-item" onclick="openUpgradeScreen()" style="border-color:var(--accent);">
+      <div class="icon">⭐</div>
+      <div class="label">Premium</div>
+    </div>
+    <div class="dash-item" onclick="openProfileScreen()">
+      <div class="icon">👤</div>
+      <div class="label">Profile</div>
+    </div>
+    <div class="dash-item" onclick="openAddStudentsScreen()">
+      <div class="icon">🧒</div>
+      <div class="label">बच्चे ऐड करें</div>
+    </div>
+    <div class="dash-item" onclick="openTestResultScreen()">
+      <div class="icon">🧮</div>
+      <div class="label">Test Mode Result</div>
+    </div>
+    <div class="dash-item" onclick="openPaperScreen()">
+      <div class="icon">📄</div>
+      <div class="label">Paper Type Print</div>
+    </div>
+    <div class="dash-item" onclick="openMarksheetScreen()">
+      <div class="icon">📝</div>
+      <div class="label">Mark Sheet Type Print</div>
+    </div>
+    <div class="dash-item" onclick="openHistoryScreen()">
+      <div class="icon">🕒</div>
+      <div class="label">History</div>
+    </div>
+    <!-- [बदलाव 24] नया Dashboard Tile — Class Performance Analytics -->
+    <div class="dash-item" onclick="openAnalyticsScreen()">
+      <div class="icon">📊</div>
+      <div class="label">Class Analytics</div>
+    </div>
+    <div class="dash-item" onclick="openResultCheckScreen()">
+      <div class="icon">🔍</div>
+      <div class="label">Result / Mark Sheet Check</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN: PROFILE                                               -->
+<!-- ============================================================ -->
+<div class="screen" id="screenProfile">
+  <span class="back-link" onclick="goToDashboard()">&larr; Dashboard पर वापस जाएं</span>
+  <div class="card" style="max-width:520px;">
+    <h3 class="section-title">Profile Edit</h3>
+    <div class="reg-highlight" id="profileRegNoDisplay"></div>
+    <div id="profileMsg"></div>
+    <label>Name</label>
+    <input type="text" id="pfName">
+    <label id="pfInstituteLabel">School / Coaching का नाम</label>
+    <input type="text" id="pfInstitute">
+    <div id="pfDiseBox">
+      <label>DISE Code</label>
+      <input type="text" id="pfDiseCode">
+    </div>
+    <label>Mobile Number</label>
+    <input type="text" id="pfMobile" maxlength="10">
+    <!-- [बदलाव 14] Password बदलने वाला हिस्सा वापस जोड़ा गया -->
+    <label>Current Password (Password बदलने के लिए ज़रूरी)</label>
+    <input type="password" id="pfCurrentPassword" placeholder="अपना मौजूदा password डालें">
+    <label>नया Password (बदलने के लिए भरें)</label>
+    <input type="password" id="pfPassword" placeholder="नया password (खाली छोड़ें अगर बदलना नहीं है)">
+    <label>Address</label>
+    <textarea id="pfAddress"></textarea>
+    <div class="footer-actions">
+      <button class="btn btn-primary" onclick="saveProfile()">Save Profile</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN: ADD STUDENTS                                          -->
+<!-- ============================================================ -->
+<div class="screen" id="screenAddStudents">
+  <span class="back-link" onclick="goToDashboard()">&larr; Dashboard पर वापस जाएं</span>
+  <div class="card">
+    <h3 class="section-title">नया बच्चा ऐड करें</h3>
+    <div id="asMsg"></div>
+    <div class="row">
+      <div><label>Student Name</label><input type="text" id="asName"></div>
+      <div><label>Father's Name</label><input type="text" id="asFatherName"></div>
+    </div>
+    <div class="row">
+      <div><label>Class</label><input type="text" id="asClass"></div>
+      <div><label>Section</label><input type="text" id="asSection"></div>
+      <div><label>Roll No. (optional)</label><input type="text" id="asRollNo"></div>
+    </div>
+    <div class="footer-actions">
+      <button class="btn btn-primary" onclick="addStudent()">+ बच्चा ऐड करें</button>
+    </div>
+  </div>
+  <div class="card">
+    <h3 class="section-title">ऐड किए गए बच्चे</h3>
+    <input type="text" id="asSearch" placeholder="Search by name / class / roll no..." oninput="renderStudentList()">
+    <!-- [बदलाव 5] Add Students स्क्रीन Ad — सर्च बार के ठीक नीचे (In-feed/Native Ad) -->
+    <div id="adSlotAddStudents" class="psb-ad-slot psb-ad-slot-infeed"></div>
+    <div id="asListWrap" style="margin-top:14px;"></div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN: TEST MODE RESULT                                      -->
+<!-- ============================================================ -->
+<div class="screen" id="screenTestResult">
+  <span class="back-link" onclick="goToDashboard()">&larr; Dashboard पर वापस जाएं</span>
+
+  <div class="card">
+    <h3 class="section-title">Teacher / Institute Details (Auto-filled — Edit कर सकते हैं)</h3>
+    <div class="row">
+      <div><label>Teacher Name</label><input type="text" id="trTeacherName"></div>
+      <div><label id="trInstituteLabel">Institute Name</label><input type="text" id="trInstitute"></div>
+      <div><label>Mobile Number</label><input type="text" id="trMobile"></div>
+    </div>
+    <div class="row">
+      <div><label>Registration Number</label><input type="text" id="trRegNo" readonly></div>
+      <div id="trDiseBox"><label>DISE Code</label><input type="text" id="trDiseCode"></div>
+      <div><label>Address</label><input type="text" id="trAddress"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 class="section-title">Class / Section</h3>
+    <div class="row">
+      <div><label>Class</label><input type="text" id="trClass" oninput="refreshAvailableStudents()"></div>
+      <div><label>Section (खुद टाइप करें)</label><input type="text" id="trSection"></div>
+      <div>
+        <label>Exam Type</label>
+        <select id="trExamType">
+          <option>Weekly Test</option>
+          <option>Monthly Test</option>
+          <option>Unit Test</option>
+          <option value="Custom">Custom</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>क्या आप किसी खास विषय का टेस्ट का रिजल्ट बनाना चाहते हो?</label>
+        <select id="trSubjectModeSelect" onchange="toggleTRSubjectMode()">
+          <option value="no">नहीं — कई विषय (Multi-Subject)</option>
+          <option value="yes">हाँ — एक खास विषय, पूरी क्लास</option>
+        </select>
+      </div>
+      <div>
+        <label>Test Date</label>
+        <input type="text" id="trTestDate" placeholder="dd/mm/yyyy">
+      </div>
+    </div>
+    <div class="row" id="trSingleSubjectRow">
+      <div>
+        <label>Subject Name<span id="trSubjectRequiredMark" class="hidden" style="color:var(--danger);">*</span></label>
+        <input type="text" id="trSubjectName" list="trSubjectDatalist" placeholder="जैसे: Mathematics" oninput="saveTestSubjectPreference()">
+        <datalist id="trSubjectDatalist">
+          <option value="English"><option value="Hindi"><option value="Mathematics">
+          <option value="Science"><option value="Social Science"><option value="Sanskrit">
+        </datalist>
+      </div>
+      <div id="trSingleMaxBox" class="hidden">
+        <label>टेस्ट कितने नंबर का है? (Max Marks)</label>
+        <input type="number" id="trSingleMaxMarks" value="100">
+      </div>
+      <div>
+        <label>Watermark / Background Name (Print व Student App में तिरछे दिखेगा — optional)</label>
+        <input type="text" id="trWatermark" placeholder="जैसे: SAMPLE">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 class="section-title">Select Student</h3>
+    <div id="trMsg"></div>
+    <div class="row">
+      <div style="flex:2;">
+        <label>Select Student (केवल इसी Class के बच्चे दिखेंगे)</label>
+        <select id="trStudentSelect"></select>
+      </div>
+      <div style="flex:1;display:flex;align-items:flex-end;">
+        <button class="btn btn-outline" style="width:100%;" onclick="loadStudentForMarks()">Load Student</button>
+      </div>
+    </div>
+
+    <div class="hidden" id="trMarksBox" style="margin-top:16px;">
+      <h3 style="margin-top:0;">Marks Entry — <span id="trActiveStudentLabel" style="color:var(--primary);"></span></h3>
+      <div id="trSubjectsWrap"></div>
+      <button class="btn btn-outline btn-sm" id="trAddSubjectBtn" onclick="addTRSubjectRow('',100,'')">+ Add Subject</button>
+      <div class="hidden row" id="trSingleObtainedRow">
+        <div><label>Max Marks</label><input type="number" id="trSingleObtainedMax"></div>
+        <div><label>प्राप्तांक (Obtained Marks)</label><input type="number" id="trSingleObtainedMarks" placeholder="बच्चे के नंबर डालें"></div>
+      </div>
+      <div class="row" style="margin-top:14px;">
+        <div><label>Pass Percentage (%)</label><input type="number" id="trPassPercent" value="33"></div>
+      </div>
+      <div class="footer-actions">
+        <button class="btn btn-primary" id="saveStudentResultBtn" onclick="saveStudentResult()">Save Student Result</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 class="section-title">Saved Students (इस Session में)</h3>
+    <div id="trSavedListWrap"><p style="color:#8892a0;">अभी तक कोई बच्चा Save नहीं हुआ।</p></div>
+    <div class="footer-actions hidden" id="trFinalActions">
+      <button class="btn btn-accent" id="trConfirmBtn" disabled onclick="confirmAndPrintTestResults()">🖨 Print</button>
+      <button class="btn btn-outline" id="trShareBtn" disabled onclick="shareTestResults()">📤 Share</button>
+      <button class="btn btn-primary" id="trPublicBtn" disabled onclick="confirmAndPrintTestResults()">✅ Student App पर Public करें</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN: PAPER EDITOR                                          -->
+<!-- ============================================================ -->
+<div class="screen" id="screenPaper">
+  <span class="back-link" onclick="goToDashboard()">&larr; Dashboard पर वापस जाएं</span>
+
+  <div class="card">
+    <h3 class="section-title">Teacher / Institute Details (Auto-filled — Edit कर सकते हैं)</h3>
+    <div class="row">
+      <div><label>Teacher Name</label><input type="text" id="paperTeacherName"></div>
+      <div><label id="paperInstituteLabel">Institute Name</label><input type="text" id="paperInstitute"></div>
+      <div><label>Mobile Number</label><input type="text" id="paperMobile"></div>
+    </div>
+    <div class="row">
+      <div><label>Registration Number</label><input type="text" id="paperRegNo" readonly></div>
+      <div id="paperDiseBox"><label>DISE Code</label><input type="text" id="paperDiseCode"></div>
+      <div><label>Address</label><input type="text" id="paperAddress"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <label>Paper Title</label>
+    <input type="text" id="paperTitle" placeholder="Paper का नाम (जैसे: Class 10 Science Paper)">
+
+    <div class="toolbar" style="margin-top:14px;">
+      <select onchange="fmt('formatBlock', this.value); this.selectedIndex=0;">
+        <option value="">Heading</option>
+        <option value="H1">Heading 1</option>
+        <option value="H2">Heading 2</option>
+        <option value="H3">Heading 3</option>
+        <option value="P">Normal</option>
+      </select>
+      <button onclick="fmt('bold')"><b>B</b></button>
+      <button onclick="fmt('italic')"><i>I</i></button>
+      <button onclick="fmt('underline')"><u>U</u></button>
+      <button onclick="fmt('strikeThrough')"><s>S</s></button>
+      <select onchange="fmt('fontSize', this.value)">
+        <option value="">Size</option>
+        <option value="2">Small</option>
+        <option value="4" selected>Medium</option>
+        <option value="6">Large</option>
+        <option value="7">Huge</option>
+      </select>
+      <input type="color" title="Text Color" onchange="fmt('foreColor', this.value)">
+      <input type="color" title="Background Color" onchange="fmt('hiliteColor', this.value)">
+      <button onclick="fmt('justifyLeft')">⬅</button>
+      <button onclick="fmt('justifyCenter')">⬛</button>
+      <button onclick="fmt('justifyRight')">➡</button>
+      <button onclick="fmt('insertUnorderedList')">• List</button>
+      <button onclick="fmt('insertOrderedList')">1. List</button>
+      <button onclick="fmt('insertHorizontalRule')">➖ Line</button>
+      <button onclick="triggerImageInsert()">🖼 Picture</button>
+      <input type="file" id="editorImageInput" accept="image/*" class="hidden" onchange="insertImageFromFile(this)">
+      <!-- [बदलाव 2] नया टूलबार बटन: टीचर यहाँ से LaTeX फॉर्मूला डाल सकते हैं।
+           यह बटन एक prompt() पॉपअप खोलता है, टीचर वहाँ \frac{1}{2} जैसा कोड लिखता है,
+           और हम उसे अपने आप $...$ (KaTeX inline-math delimiter) में लपेटकर
+           editorArea में डाल देते हैं — ताकि प्रिंट/PDF के समय KaTeX उसे पहचान सके। -->
+      <button onclick="insertMathFormula()">∑ Math (LaTeX)</button>
+      <button onclick="openAiCommandModal()">✨ AI Command</button>
+      <!-- [बदलाव 23] AI Question Paper Generator — Gemini API से पूरा प्रश्न पत्र अपने-आप बनेगा -->
+      <button onclick="openAiPaperGenModal()">🧠 AI पेपर बनाएं</button>
+      <button onclick="clearEditor()">🗑 Clear All</button>
+    </div>
+
+    <div id="editorArea" contenteditable="true">यहाँ अपना पेपर लिखना शुरू करें...</div>
+    <!-- [बदलाव 5] Paper Editor Ad #1 — #editorArea के ठीक नीचे (Native/In-content Ad) -->
+    <div id="adSlotPaperTop" class="psb-ad-slot psb-ad-slot-infeed"></div>
+    <p style="font-size:12px;color:#8892a0;margin-top:6px;">Tip: "🖼 Picture" से Paper में कोई भी फोटो/डायग्राम जोड़ें — यह Print व Student App दोनों में दिखेगी। गणितीय फॉर्मूला (जैसे √, भिन्न, आदि) डालने के लिए "∑ Math (LaTeX)" बटन दबाएँ, या सीधे टाइप करते समय फॉर्मूले को <b>$...$</b> के बीच लिखें — जैसे <code>$\frac{1}{2}$</code> या <code>$\sqrt{x^2+y^2}$</code>। Print/PDF बनते ही यह असली गणितीय चिह्न में बदल जाएगा।</p>
+
+    <label>Watermark / Background Name (Print पर तिरछे दिखेगा — optional)</label>
+    <input type="text" id="paperWatermark" placeholder="जैसे: SAMPLE, स्कूल का नाम आदि">
+
+    <div id="paperMsg"></div>
+    <!-- [बदलाव 5] Paper Editor Ad #2 — Save/Print बटन के ठीक ऊपर (Native/In-content Ad) -->
+    <div id="adSlotPaperBottom" class="psb-ad-slot psb-ad-slot-infeed"></div>
+    <div class="footer-actions">
+      <button class="btn btn-outline" onclick="savePaper(false)">Save</button>
+      <button class="btn btn-primary" onclick="savePaper(true)">Save &amp; Print</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI Command Modal -->
+<div class="modal-overlay hidden" id="aiModal">
+  <div class="modal-box">
+    <h3>✨ AI Command</h3>
+    <p style="font-size:13px;color:#555;">पहले टेक्स्ट को select करें, फिर कमांड टाइप करें। उदाहरण: <br>
+    <i>bold</i>, <i>italic</i>, <i>underline</i>, <i>color red</i>, <i>background yellow</i>, <i>size large</i>, <i>align center</i>, <i>clear</i></p>
+    <input type="text" id="aiCommandInput" placeholder="कमांड लिखें...">
+    <div class="footer-actions">
+      <button class="btn btn-outline btn-sm" onclick="closeAiModal()">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="runAiCommand()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN: MARK SHEET FORM                                       -->
+<!-- ============================================================ -->
+<div class="screen" id="screenMarksheet">
+  <span class="back-link" onclick="goToDashboard()">&larr; Dashboard पर वापस जाएं</span>
+
+  <div class="card">
+    <h3 class="section-title">Teacher / Institute Details (Auto-filled — Edit कर सकते हैं)</h3>
+    <div class="row">
+      <div><label>Teacher Name</label><input type="text" id="msTeacherName"></div>
+      <div><label>Mobile Number</label><input type="text" id="msMobile"></div>
+      <div><label>Registration Number</label><input type="text" id="msRegNo" readonly></div>
+    </div>
+    <div class="row">
+      <div id="msDiseBox2"><label>DISE Code</label><input type="text" id="msDiseCode2"></div>
+      <div><label>Address</label><input type="text" id="msAddress"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Student Details</h3>
+    <div class="row">
+      <div><label>Student Name</label><input type="text" id="msStudentName"></div>
+      <div><label>Father's Name</label><input type="text" id="msFatherName"></div>
+      <div><label>Mother's Name (optional)</label><input type="text" id="msMotherName"></div>
+    </div>
+    <div class="row">
+      <div><label>Class</label><input type="text" id="msClass"></div>
+      <div><label>Roll No.</label><input type="text" id="msRollNo"></div>
+      <div><label>School Name</label><input type="text" id="msSchoolName"></div>
+    </div>
+    <div class="row">
+      <div><label>Disc Code (optional)</label><input type="text" id="msDiscCode"></div>
+      <div>
+        <label>Exam Type</label>
+        <select id="msExamType" onchange="toggleCustomExam()">
+          <option>Project</option>
+          <option>Half Yearly</option>
+          <option>Annual</option>
+          <option value="Custom">Custom</option>
+        </select>
+      </div>
+      <div id="msCustomExamBox" class="hidden"><label>Custom Exam Name</label><input type="text" id="msCustomExam"></div>
+    </div>
+
+    <h3 style="margin-top:20px;">Subjects &amp; Marks</h3>
+    <div id="subjectsWrap"></div>
+    <button class="btn btn-outline btn-sm" onclick="addSubjectRow('',100,'')">+ Add Subject</button>
+
+    <div class="row" style="margin-top:16px;">
+      <div><label>Pass Percentage (%)</label><input type="number" id="msPassPercent" value="33"></div>
+    </div>
+
+    <label>Remarks (कुछ भी लिख सकते हैं)</label>
+    <textarea id="msRemarks" placeholder="Remarks..."></textarea>
+
+    <label>Watermark / Background Name (Print पर तिरछे दिखेगा — optional)</label>
+    <input type="text" id="msWatermark" placeholder="जैसे: SAMPLE, स्कूल का नाम आदि">
+
+    <div id="msMsg"></div>
+    <!-- [बदलाव 5] Mark Sheet स्क्रीन Ad — Save/Print बटन के ठीक ऊपर (Native/In-content Ad) -->
+    <div id="adSlotMarksheetBottom" class="psb-ad-slot psb-ad-slot-infeed"></div>
+    <div class="footer-actions">
+      <button class="btn btn-outline" onclick="calculateMarksheet()">Calculate &amp; Preview</button>
+      <button class="btn btn-outline" onclick="saveMarksheet(false)">Save</button>
+      <button class="btn btn-primary" onclick="saveMarksheet(true)">Save &amp; Print</button>
+    </div>
+  </div>
+
+  <div class="card hidden" id="msPreviewCard">
+    <h3>Preview</h3>
+    <div id="msPreviewContent"></div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN: HISTORY                                               -->
+<!-- ============================================================ -->
+<div class="screen" id="screenHistory">
+  <span class="back-link" onclick="goToDashboard()">&larr; Dashboard पर वापस जाएं</span>
+
+  <div class="hidden" id="historyContentWrap">
+    <div class="tabs">
+      <div class="tab-btn active" id="tabPapers" onclick="switchHistoryTab('papers')">Papers</div>
+      <div class="tab-btn" id="tabMarksheets" onclick="switchHistoryTab('marksheets')">Mark Sheets</div>
+      <div class="tab-btn" id="tabTestResults" onclick="switchHistoryTab('testresults')">Test Results</div>
+    </div>
+    <div class="card">
+      <input type="text" id="historySearch" placeholder="Search by name / class / roll no / title..." oninput="renderHistoryList()">
+      <!-- [बदलाव 5] History स्क्रीन Ad — सर्च बार के ठीक नीचे (In-feed/Native Ad) -->
+      <div id="adSlotHistory" class="psb-ad-slot psb-ad-slot-infeed"></div>
+      <div id="historyListWrap" style="margin-top:14px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN: CLASS PERFORMANCE ANALYTICS (Graphs) — [बदलाव 24]     -->
+<!-- ============================================================ -->
+<div class="screen" id="screenAnalytics">
+  <span class="back-link" onclick="goToDashboard()">&larr; Dashboard पर वापस जाएं</span>
+  <div class="card">
+    <h3 class="section-title">📊 Class Performance Analytics</h3>
+    <p style="font-size:13px;color:#666;margin-top:-6px;">यह Mark Sheet व Test Result — दोनों के Data से बनता है।</p>
+    <label>Class चुनें</label>
+    <select id="anClassSelect" onchange="renderAnalytics()"></select>
+    <div id="anMsg"></div>
+  </div>
+
+  <div id="anResultsWrap" class="hidden">
+    <div class="stat-grid">
+      <div class="stat-box"><div class="num" id="anTotalRecords">0</div><div class="lbl">कुल Records</div></div>
+      <div class="stat-box"><div class="num" id="anClassAverage">0%</div><div class="lbl">Class Average</div></div>
+      <div class="stat-box"><div class="num" id="anPassPercent">0%</div><div class="lbl">Pass %</div></div>
+      <div class="stat-box"><div class="num" id="anWeakSubject">-</div><div class="lbl">सबसे कमज़ोर विषय</div></div>
+    </div>
+
+    <div class="card">
+      <h3 class="section-title">Pass / Fail अनुपात</h3>
+      <canvas id="anPassFailChart" height="220"></canvas>
+    </div>
+
+    <div class="card">
+      <h3 class="section-title">विषय-वार औसत प्रतिशत (Subject-wise Average)</h3>
+      <canvas id="anSubjectChart" height="260"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN: RESULT / MARKSHEET CHECK                              -->
+<!-- ============================================================ -->
+<div class="screen" id="screenResultCheck">
+  <span class="back-link" onclick="goToDashboard()">&larr; Dashboard पर वापस जाएं</span>
+  <div class="card">
+    <h3>अपना Result / Mark Sheet देखें</h3>
+    <div class="row">
+      <div><label>Roll No.</label><input type="text" id="rcRollNo"></div>
+      <div><label>Class</label><input type="text" id="rcClass"></div>
+    </div>
+    <div class="row">
+      <div><label>School Name</label><input type="text" id="rcSchool"></div>
+      <div><label>Disc Code (optional)</label><input type="text" id="rcDiscCode"></div>
+    </div>
+    <div class="footer-actions">
+      <button class="btn btn-primary" onclick="searchResult()">Search Result</button>
+    </div>
+    <div id="rcMsg"></div>
+  </div>
+  <div class="card hidden" id="rcResultCard">
+    <div id="rcResultContent"></div>
+    <div class="footer-actions">
+      <button class="btn btn-accent" onclick="printFromElement('rcResultContent')">🖨 Print</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden print area (content is injected here right before window.print()) -->
+<div id="printArea"></div>
+
+<script type="module">
+/* =====================================================================
+   PART 0: FIREBASE INITIALISATION
+   ===================================================================== */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs,
+  query, where, updateDoc, deleteDoc, orderBy, increment, onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+  GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, signOut,
+  updatePassword, reauthenticateWithCredential, EmailAuthProvider
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAVccywI4eCzbc1eg6cy2qZaEeYUx0qi2w",
+  authDomain: "chatting-app-2047e.firebaseapp.com",
+  projectId: "chatting-app-2047e",
+  storageBucket: "chatting-app-2047e.firebasestorage.app",
+  messagingSenderId: "641783644815",
+  appId: "1:641783644815:web:9a392923b2213f432ca6fa"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
+
+/* =====================================================================
+   [बदलाव 16] ग्लोबल Error Handling — कहीं भी कोई Error आए तो लाल अक्षरों में दिखे
+   ===================================================================== */
+function showGlobalError(message){
+  const banner = document.getElementById("globalErrorBanner");
+  if(!banner) { console.error(message); return; }
+  const line = document.createElement("div");
+  line.textContent = "⚠️ " + message;
+  banner.appendChild(line);
+  banner.classList.remove("hidden");
+  if(!banner.querySelector(".geb-close")){
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "geb-close";
+    closeBtn.textContent = "✕";
+    closeBtn.onclick = () => banner.classList.add("hidden");
+    banner.appendChild(closeBtn);
+  }
+}
+// कोई भी uncaught JavaScript Error (जैसे कोई फ़ंक्शन में अचानक गड़बड़ी) — यहाँ पकड़ा जाएगा
+window.addEventListener("error", (e) => {
+  showGlobalError(e.message || "एक अनजान Error आया है");
+});
+// कोई भी async/Promise वाला Error जो कहीं भी .catch() से न पकड़ा गया हो — यहाँ पकड़ा जाएगा
+window.addEventListener("unhandledrejection", (e) => {
+  showGlobalError((e.reason && e.reason.message) || "एक अनजान Error आया है (Promise)");
+});
+
+window.__db = db;
+window.__fs = { doc, getDoc, setDoc, collection, addDoc, getDocs, query, where, updateDoc, deleteDoc, orderBy, increment, onSnapshot };
+window.__auth = auth;
+
+let currentTeacher = null; // { regNo, name, number, email, teacherType, instituteName, diseCode, address, plan, freePrintsUsed }  -- NOTE: password is never stored here or in Firestore; Firebase Auth owns credentials.
+
+/* ---------------------------------------------------------------------
+   FREEMIUM + ADS (Adsterra) SETTINGS
+   Teacher doc fields used:
+     plan            ("free" | "premium", default "free")
+     freePrintsUsed  (number, default 0) -- lifetime free-plan print count
+   Premium unlocks: unlimited prints + custom/no watermark (no forced
+   "FREE VERSION" overlay) + no Adsterra ads shown in the app.
+   --------------------------------------------------------------------- */
+// [बदलाव 25 - बग फिक्स] ये दोनों constants पिछली बार Ad Codes बदलते समय गलती से
+// हट गए थे, जिससे Login के बाद "FREE_PRINT_LIMIT is not defined" Error आ रहा था और
+// पूरा Script वहीं रुक जाने से पूरी Profile Load होने की प्रक्रिया टूट जाती थी।
+const FREE_PRINT_LIMIT = 10;
+const FORCED_FREE_WATERMARK = "PSB TEACHER - FREE VERSION";
+/* ---------------------------------------------------------------------
+   [बदलाव 21] नए Adsterra Ad Codes डाले गए (पुराने हटाकर) — जो अभी भेजे गए
+   ज़रूरी तकनीकी बात: अगर <script> टैग सीधे innerHTML से डाला जाए तो ब्राउज़र
+   उसे चलाता (execute) नहीं है — यह ब्राउज़र की एक जानी-मानी सीमा है। इसलिए
+   नीचे injectAdMarkup() फ़ंक्शन असली <script> एलिमेंट फिर से बनाकर जोड़ता है,
+   ताकि Ad कोड सच में चले। साथ ही atOptions वाले Banner कोड (320x50 / 728x90)
+   को अलग-अलग <iframe> में डाला गया है — वरना अगर 2 ऐसे banner एक ही पेज पर
+   एक साथ दिखें, तो दोनों का साझा "atOptions" वेरिएबल टकरा (overwrite हो) सकता है।
+   --------------------------------------------------------------------- */
+// 1) Popunder / Interstitial (Zone ID: 30574824)
+const ADSTERRA_POPUNDER_SCRIPT_HTML = `<script src="https://consciousdunkvastly.com/c1/8e/b5/c18eb58411cc2cb5aa20c24d51747c15.js"><\/script>`;
+// 2) Native/In-content Banner (Zone ID: 30574825) — Paper Editor स्क्रीन पर (सबसे ज्यादा engagement वाली जगह)
+const ADSTERRA_NATIVE_AD_HTML = `<script async="async" data-cfasync="false" src="https://consciousdunkvastly.com/babe92e8cd8bafd36ff10bec1b1eef45/invoke.js"><\/script>
+<div id="container-babe92e8cd8bafd36ff10bec1b1eef45"></div>`;
+// 3) Banner 320x50 (Zone ID: 30574826) — Login/Complete-Profile स्क्रीन व Paper/Marksheet के दूसरे Ad स्लॉट पर
+const ADSTERRA_BANNER_320x50_KEY = "bb590076f5633ff07d0ff33fe5b3ae4b";
+// 4) Banner 728x90 (Zone ID: 30574827) — Sticky Bottom Banner पर (चौड़ा साइज़ फिट बैठता है)
+const ADSTERRA_BANNER_728x90_KEY = "4754dd1a282721a1979ab9139c7a35da";
+// 5) Smart Link (Zone ID: 30574828) — History/Add Students स्क्रीन पर एक क्लिक करने योग्य "Sponsored" लिंक की तरह
+const ADSTERRA_SMARTLINK_URL = "https://consciousdunkvastly.com/x7f1223r?key=acb43fd8720e1a807ea43ae0d7f3ee5d";
+// 6) Social Bar (Zone ID: 30574829) — पूरे ऐप में एक बार जुड़ने वाला अपना-आप तैरता (floating) बार
+const ADSTERRA_SOCIALBAR_SCRIPT_HTML = `<script src="https://consciousdunkvastly.com/fe/ed/4f/feed4f649c7f66d448e281e7764edbe7.js"><\/script>`;
+
+// ---- [बदलाव 6] <script> टैग असल में execute हो, इसके लिए DOM से दोबारा बनाकर जोड़ने वाला हेल्पर ----
+// नोट: ऊपर हर जगह क्लोज़िंग script टैग को जानबूझकर बैकस्लैश के साथ (<\/script>) लिखा गया है — वरना ब्राउज़र
+// इस पूरी .html फ़ाइल के असली <script type="module"> टैग को यहीं (बीच में) गलती से बंद मान लेता।
+function injectAdMarkup(container, htmlString){
+  if(!container) return;
+  container.innerHTML = "";
+  const temp = document.createElement("div");
+  temp.innerHTML = htmlString;
+  Array.from(temp.childNodes).forEach(node => {
+    if(node.nodeType === 1 && node.tagName === "SCRIPT"){
+      const s = document.createElement("script");
+      Array.from(node.attributes).forEach(attr => s.setAttribute(attr.name, attr.value));
+      if(node.textContent) s.textContent = node.textContent;
+      // जिन script में खुद async="async" नहीं लिखा, उन्हें document-order में ही
+      // (एक के बाद एक) चलाना ज़रूरी है — जैसे atOptions सेट करने वाला इनलाइन कोड।
+      if(!node.hasAttribute("async")) s.async = false;
+      container.appendChild(s);
+    } else {
+      container.appendChild(node.cloneNode(true));
+    }
+  });
+}
+
+// ---- [बदलाव 6] atOptions वाले Banner (320x50 / 728x90) को isolated <iframe> में दिखाना ----
+// यह तरीका इस्तेमाल करने से एक ही कोड को कई जगह (जैसे Paper व Marksheet दोनों) बिना
+// टकराव के दोहराया जा सकता है, क्योंकि हर <iframe> का अपना अलग "atOptions" स्कोप होता है।
+function renderAtOptionsBannerIframe(container, key, width, height){
+  if(!container) return;
+  const html = `<html><body style="margin:0;padding:0;overflow:hidden;">`
+    + `<script>atOptions=${JSON.stringify({key, format:"iframe", height, width, params:{}})};<\/script>`
+    + `<script src="https://consciousdunkvastly.com/${key}/invoke.js"><\/script>`
+    + `</body></html>`;
+  const iframe = document.createElement("iframe");
+  iframe.srcdoc = html;
+  iframe.width = String(width);
+  iframe.height = String(height);
+  iframe.style.border = "0";
+  iframe.style.maxWidth = "100%";
+  iframe.scrolling = "no";
+  container.innerHTML = "";
+  container.appendChild(iframe);
+}
+
+// ---- [बदलाव 6] नए Ad Slots को पेज लोड होते ही उनकी जगह पर भरना ----
+(function initExtraAdSlots(){
+  // Native/In-content Banner — सिर्फ एक जगह (Paper स्क्रीन के टॉप स्लॉट पर), क्योंकि
+  // इसके अंदर एक fixed-id वाला <div> है जो पेज पर सिर्फ एक ही बार होना चाहिए।
+  const paperTop = document.getElementById("adSlotPaperTop");
+  if(paperTop) injectAdMarkup(paperTop, ADSTERRA_NATIVE_AD_HTML);
+
+  // 320x50 Banner — Login/Complete-Profile व Paper/Marksheet के दूसरे स्लॉट पर (iframe-safe, दोहराया जा सकता है)
+  ["adSlotRegister", "adSlotCompleteProfile", "adSlotPaperBottom", "adSlotMarksheetBottom"].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) renderAtOptionsBannerIframe(el, ADSTERRA_BANNER_320x50_KEY, 320, 50);
+  });
+
+  // 728x90 Banner — Sticky Bottom Bar पर
+  const sticky = document.getElementById("stickyAdBar");
+  if(sticky) renderAtOptionsBannerIframe(sticky, ADSTERRA_BANNER_728x90_KEY, 728, 90);
+
+  // Smart Link — History/Add Students स्क्रीन पर एक साधारण क्लिक करने योग्य लिंक की तरह
+  ["adSlotHistory", "adSlotAddStudents"].forEach(id => {
+    const el = document.getElementById(id);
+    if(el){
+      el.innerHTML = `<a href="${ADSTERRA_SMARTLINK_URL}" target="_blank" rel="noopener sponsored"
+        style="display:block;padding:10px;text-decoration:none;color:var(--primary-dark);font-weight:600;text-align:center;">
+        📢 Sponsored — देखने के लिए यहाँ टैप करें</a>`;
+    }
+  });
+
+  document.querySelectorAll(".psb-ad-slot").forEach(el => {
+    const label = document.createElement("div");
+    label.className = "psb-ad-label";
+    label.textContent = "Advertisement";
+    el.appendChild(label);
+  });
+})();
+
+// ---- [बदलाव 6] Premium यूज़र को कोई भी नया Ad न दिखे — सभी नए Ad Slots यहीं से toggle होते हैं ----
+// (पुराना Dashboard वाला #adsterraBox अपने पुराने तरीके से ही toggle होता रहेगा, उसे छेड़ा नहीं गया)
+// [बदलाव 17 - बग फिक्स] socialBarInjected को यहाँ ऊपर ले आए — पहले यह refreshAdVisibility()
+// के तुरंत-कॉल होने के बाद Declare होता था, जिससे "Cannot access before initialization"
+// Error आता था और उसके बाद का पूरा Script रुक जाता था (इसी वजह से Login के बटन भी
+// "is not defined" Error देते थे)।
+let socialBarInjected = false;
+function refreshAdVisibility(){
+  const hide = !!(currentTeacher && isPremium());
+  document.querySelectorAll(".psb-ad-slot").forEach(el => el.classList.toggle("hidden", hide));
+  // [बदलाव 15] Login स्क्रीन पर Sticky Bar कभी नहीं दिखनी चाहिए, चाहे यह फ़ंक्शन कहीं से भी चले
+  const activeId = document.querySelector(".screen.active")?.id;
+  const sticky = document.getElementById("stickyAdBar");
+  if(sticky && activeId === "screenLogin") sticky.classList.add("hidden");
+  // [बदलाव 12 - बग फिक्स] Social Bar अब सिर्फ Login होने के बाद ही जोड़ा जाता है (नीचे देखें)
+  refreshSocialBar(hide || !currentTeacher);
+}
+refreshAdVisibility(); // शुरुआती स्थिति (Login स्क्रीन पर Social Bar नहीं जुड़ेगा — नीचे नोट देखें)
+
+// ---- [बदलाव 6] Social Bar — पूरे ऐप में एक बार जुड़ने वाला फ़्लोटिंग बार ----
+// [बदलाव 12 - बग फिक्स] Social Bar वाले Ad Scripts अक्सर पूरे पेज पर तैरता/floating
+// element जोड़ते हैं जो कभी-कभी क्लिक को बीच में रोक (hijack कर) सकता है। Login स्क्रीन पर
+// टीचर की "Continue with Google" वाली क्लिक बिना किसी रुकावट के पहुँचनी बहुत ज़रूरी है,
+// इसलिए अब Social Bar सिर्फ़ लॉगिन हो जाने के बाद ही जोड़ा जाता है (Login/Complete-Profile
+// स्क्रीन पर नहीं) — बाकी सभी Ad Slots पहले जैसे ही बिना लॉगिन के भी दिखते रहेंगे।
+function refreshSocialBar(hide){
+  let wrap = document.getElementById("psbSocialBarSlot");
+  if(hide){
+    if(wrap) wrap.remove();
+    socialBarInjected = false;
+    return;
+  }
+  if(!socialBarInjected){
+    wrap = document.createElement("div");
+    wrap.id = "psbSocialBarSlot";
+    wrap.style.display = "none"; // यह खुद खाली/अदृश्य है; असली widget खुद body में तैरने लगेगा
+    document.body.appendChild(wrap);
+    injectAdMarkup(wrap, ADSTERRA_SOCIALBAR_SCRIPT_HTML);
+    socialBarInjected = true;
+  }
+}
+
+// ---- [बदलाव 6] Popunder/Interstitial ट्रिगर फ़ंक्शन ----
+// जब भी टीचर "Save & Print", "Search Result" दबाए या स्क्रीन बदले — यह फ़ंक्शन कॉल होता है।
+// Premium यूज़र को कोई Ad-Interruption न मिले, इसलिए उनके लिए यह कुछ नहीं करता।
+function triggerPopunderAd(){
+  if(currentTeacher && isPremium()) return;
+  try{
+    // पुराना popunder <script> टैग हटाकर नया डालना — कुछ Adsterra popunder scripts
+    // हर बार fresh-load होने पर ही दोबारा ट्रिगर होने के लिए बने होते हैं।
+    const old = document.getElementById("psbPopunderScriptSlot");
+    if(old) old.remove();
+    const wrap = document.createElement("div");
+    wrap.id = "psbPopunderScriptSlot";
+    wrap.style.display = "none";
+    document.body.appendChild(wrap);
+    injectAdMarkup(wrap, ADSTERRA_POPUNDER_SCRIPT_HTML);
+  }catch(err){ console.warn("Popunder ad trigger नहीं हो पाया:", err.message); }
+}
+
+/* ---------------------------------------------------------------------
+   [बदलाव 1] PREMIUM PRICING + REFERRAL PROGRAM SETTINGS
+   यहाँ से आप कीमत व referral की शर्तें एक ही जगह बदल सकते हैं।
+   - Monthly: ₹15/महीना
+   - Yearly: ₹150/साल (यानी ₹15×12=₹180 की जगह ₹150 — 2 महीने जितनी छूट)
+   - Referral: हर 3 दोस्तों के साइनअप पर, referrer को 3 महीने Premium मुफ़्त
+   --------------------------------------------------------------------- */
+/* ---------------------------------------------------------------------
+   [बदलाव 8] PREMIUM PLANS अब Admin App से Control होंगे (Firestore-driven)
+   Firestore Collection: "premiumPlans" — हर Document एक Plan है:
+     name          (string)  — जैसे "Monthly", "Yearly"
+     price         (number)  — ₹ में कीमत
+     durationDays  (number)  — कितने दिनों के लिए Premium मिलेगा
+     active        (bool)    — false होने पर वह Plan टीचर ऐप में नहीं दिखेगा
+     sortOrder     (number)  — किस क्रम में दिखे (छोटा नंबर पहले)
+   यह Collection Admin App से manage होगी (Add/Edit/Delete) — टीचर ऐप यहाँ
+   सिर्फ इसे लाइव पढ़ता (onSnapshot) है और वही Plans Upgrade स्क्रीन पर दिखाता है।
+   जब तक Admin App से एक भी Plan न जोड़ा जाए, यह लिस्ट खाली रहेगी और टीचर
+   ऐप एक उचित सा "अभी कोई Plan उपलब्ध नहीं" संदेश दिखाएगा।
+   --------------------------------------------------------------------- */
+let premiumPlansList = [];
+window.__fs.onSnapshot(
+  window.__fs.query(window.__fs.collection(window.__db, "premiumPlans"), window.__fs.orderBy("sortOrder", "asc")),
+  (snap) => {
+    premiumPlansList = [];
+    snap.forEach(d => { const p = d.data(); if(p.active !== false) premiumPlansList.push({ id: d.id, ...p }); });
+  },
+  (err) => console.warn("premiumPlans sync error:", err.message)
+);
+
+/* ---------------------------------------------------------------------
+   [बदलाव 22] ANNOUNCEMENTS (सूचनाएं) — Admin App से भेजी गईं, Dashboard पर
+   ऊपर एक Scrolling Ticker में दिखती हैं।
+   Firestore Collection: "announcements" — हर Document एक सूचना है:
+     title      (string)  — सूचना का टाइटल (जैसे "ज़रूरी सूचना")
+     message    (string)  — असली संदेश
+     link       (string, वैकल्पिक) — अगर दिया हो तो सूचना पर क्लिक करने से यह लिंक नए Tab में खुलेगा
+     active     (bool)    — false होने पर वह सूचना नहीं दिखेगी
+     createdAt  (string, ISO date)
+   Composite Index से बचने के लिए यहाँ सिर्फ createdAt पर orderBy किया गया है,
+   "active" वाली फ़िल्टरिंग यहीं JS में (नीचे) की जाती है।
+   --------------------------------------------------------------------- */
+window.__fs.onSnapshot(
+  window.__fs.query(window.__fs.collection(window.__db, "announcements"), window.__fs.orderBy("createdAt", "desc")),
+  (snap) => {
+    const wrap = document.getElementById("announceTickerWrap");
+    const track = document.getElementById("announceTickerTrack");
+    if(!wrap || !track) return;
+    const items = [];
+    snap.forEach(d => { const a = d.data(); if(a.active !== false) items.push(a); });
+    if(items.length === 0){
+      wrap.classList.add("hidden");
+      track.innerHTML = "";
+      return;
+    }
+    track.innerHTML = items.map(a => {
+      const inner = `<b>📢 ${escapeHtml(a.title || "सूचना")}:</b> ${escapeHtml(a.message || "")}`;
+      return a.link
+        ? `<a class="announce-item" href="${escapeAttr(a.link)}" target="_blank" rel="noopener">${inner}</a>`
+        : `<span class="announce-item">${inner}</span>`;
+    }).join("");
+    wrap.classList.remove("hidden");
+  },
+  (err) => console.warn("announcements sync error:", err.message)
+);
+
+const REFERRAL_FRIENDS_NEEDED  = 3;    // इतने दोस्तों के साइनअप पर इनाम
+const REFERRAL_REWARD_MONTHS   = 3;    // इनाम में मिलने वाले फ्री Premium महीने
+const APP_BRAND_NAME = "PSB Teachers App";
+const APP_BRAND_URL  = "psbteachers.in";
+
+/* ---------------------------------------------------------------------
+   [बदलाव 20] PAYMENT — अब आपके असली Razorpay.me Payment Link से
+   ज़रूरी बात समझें: razorpay.me वाला Personal Link सिर्फ एक Hosted Payment Page है —
+   इसमें कोई API Key/Webhook नहीं होता, इसलिए यह ऐप को खुद-ब-खुद यह नहीं बता सकता कि
+   Payment सच में सफल हुआ या नहीं (पूरी तरह से "ऑटोमैटिक" Activation इस Link से संभव
+   नहीं है, वह सिर्फ असली Razorpay API Keys/Webhook से बनता, जो आपके पास अभी नहीं है)।
+   इसलिए तरीका यह रखा गया है: टीचर Payment करता है → वापस आकर "मैंने Payment कर दिया है"
+   दबाकर अपना Transaction ID भेजता है → यह Firestore के "paymentRequests" Collection में
+   जाता है → Admin App में यह दिखेगा और Admin एक क्लिक में उस टीचर का Plan Activate कर
+   देंगे (आपके पहले से बने "Plan बदलें" वाले Admin फीचर से, पेमेंट खुद Razorpay Dashboard
+   में चेक करने के बाद)। यह 100% भरोसेमंद तरीका है, बस इसमें Approval में थोड़ा समय लगेगा।
+   --------------------------------------------------------------------- */
+const RAZORPAY_ME_LINK = "https://razorpay.me/@nirmladevi9418";
+
+function isPremium(){
+  if(!currentTeacher || currentTeacher.plan !== "premium") return false;
+  // [बदलाव 1] अगर premiumUntil तारीख सेट है (referral इनाम/paid subscription से), तो उसकी
+  // एक्सपायरी चेक करें। अगर premiumUntil खाली/undefined है (admin ने मैन्युअली premium दिया),
+  // तो उसे हमेशा-के-लिए valid माना जाता है — पुराने accounts भी बिना टूटे चलते रहें, इसलिए।
+  if(currentTeacher.premiumUntil){
+    return new Date(currentTeacher.premiumUntil).getTime() > Date.now();
+  }
+  return true;
+}
+function premiumDaysLeft(){
+  if(!currentTeacher || !currentTeacher.premiumUntil) return null;
+  const diffMs = new Date(currentTeacher.premiumUntil).getTime() - Date.now();
+  return Math.max(0, Math.ceil(diffMs / (1000*60*60*24)));
+}
+function freePrintsRemaining(){
+  if(!currentTeacher) return 0;
+  return Math.max(0, FREE_PRINT_LIMIT - (currentTeacher.freePrintsUsed || 0));
+}
+function canPrintNow(){
+  return isPremium() || freePrintsRemaining() > 0;
+}
+async function registerPrintUsage(){
+  if(isPremium() || !currentTeacher) return;
+  currentTeacher.freePrintsUsed = (currentTeacher.freePrintsUsed || 0) + 1;
+  try{
+    await window.__fs.updateDoc(window.__fs.doc(window.__db, "teachers", currentTeacher.regNo), { freePrintsUsed: window.__fs.increment(1) });
+  }catch(err){ console.warn("print-usage update failed:", err.message); }
+  applyPlanStatusUI();
+}
+
+// ---- [बदलाव 20] Razorpay.me Payment Link खोलना ----
+window.startPayment = function(planId){
+  const plan = premiumPlansList.find(p => p.id === planId);
+  if(!plan || !currentTeacher) return;
+  // amount पैरामीटर से Razorpay.me पेज पर कीमत पहले से भरी हुई खुलेगी
+  window.open(RAZORPAY_ME_LINK + "?amount=" + plan.price, "_blank");
+  openSubmitPaymentModal(planId);
+};
+
+// ---- [बदलाव 20] Payment करने के बाद टीचर यहीं से Confirm करेगा ----
+window.openSubmitPaymentModal = function(planId){
+  const plan = premiumPlansList.find(p => p.id === planId);
+  if(!plan || !currentTeacher) return;
+  openViewModal(`
+    <h3>✅ Payment करने के बाद यहाँ Confirm करें</h3>
+    <p style="font-size:14px;color:#444;">Razorpay के पेज पर <b>₹${plan.price}</b> का Payment पूरा करें (नया Tab खुल चुका है)। Payment होने के बाद यहाँ अपना Transaction/UTR Number डालें — इससे Admin आपका <b>${escapeHtml(plan.name)}</b> Plan जल्दी Activate कर पाएंगे।</p>
+    <label>Transaction / UTR Number (Payment Screenshot में मिलेगा — वैकल्पिक, पर देने से जल्दी होगा)</label>
+    <input type="text" id="paymentRefInput" placeholder="जैसे: 305412789456">
+    <div class="footer-actions">
+      <button class="btn btn-primary btn-sm" onclick="submitPaymentProof('${plan.id}')">मैंने Payment कर दिया है — भेजें</button>
+    </div>
+  `);
+};
+
+window.submitPaymentProof = async function(planId){
+  const plan = premiumPlansList.find(p => p.id === planId);
+  if(!plan || !currentTeacher) return;
+  const ref = document.getElementById("paymentRefInput").value.trim();
+  try{
+    await window.__fs.addDoc(window.__fs.collection(window.__db, "paymentRequests"), {
+      teacherRegNo: currentTeacher.regNo,
+      teacherName: currentTeacher.name,
+      teacherMobile: currentTeacher.number,
+      planId: plan.id, planName: plan.name, price: plan.price, durationDays: plan.durationDays,
+      referenceNote: ref || null,
+      status: "pending",
+      createdAt: new Date().toISOString()
+    });
+    document.querySelectorAll(".modal-overlay").forEach(m => m.remove());
+    alert("आपका Payment Confirmation भेज दिया गया है ✅ Admin जल्द ही आपका Plan Activate कर देंगे।");
+  }catch(err){
+    showGlobalError("Payment Confirmation भेजने में Error: " + err.message); // [बदलाव 16]
+  }
+};
+
+function showUpgradeModal(){
+  const daysLeft = premiumDaysLeft();
+  const refCode = currentTeacher ? currentTeacher.regNo : "";
+  const refCount = (currentTeacher && currentTeacher.referralCount) || 0;
+  const refProgress = refCount % REFERRAL_FRIENDS_NEEDED; // अगले इनाम तक कितने दोस्त हो चुके
+  // [बदलाव 8] Plan कार्ड अब Admin App की तय की गई premiumPlansList से बनते हैं (हार्डकोडेड नहीं)
+  const plansHtml = premiumPlansList.length ? `
+    <div class="row" style="margin:14px 0;flex-wrap:wrap;">
+      ${premiumPlansList.map(p => `
+        <div class="reg-highlight" style="flex:1;min-width:130px;text-align:center;">
+          <div style="font-size:13px;color:#666;">${escapeHtml(p.name)}</div>
+          <div style="font-size:22px;font-weight:800;color:var(--primary-dark);">₹${p.price}</div>
+          <div style="font-size:11px;color:#888;">${p.durationDays} दिन के लिए</div>
+          ${currentTeacher ? `<button class="btn btn-primary btn-sm" style="margin-top:8px;width:100%;" onclick="startPayment('${p.id}')">Pay &amp; Activate</button>` : ""}
+        </div>
+      `).join("")}
+    </div>
+  ` : `<p style="font-size:13px;color:#888;text-align:center;margin:14px 0;">अभी कोई Premium Plan उपलब्ध नहीं है — कृपया थोड़ी देर बाद कोशिश करें।</p>`;
+
+  openViewModal(`
+    <h3 class="section-title">⭐ Premium पर Upgrade करें</h3>
+    <p style="font-size:14px;color:#444;">आपकी Free Plan की print limit (${FREE_PRINT_LIMIT}) खत्म हो गई है। Premium लेकर पाएं:</p>
+    <ul style="font-size:14px;color:#444;line-height:1.7;">
+      <li>✅ Unlimited Mark Sheet / Paper / Test Result Print</li>
+      <li>✅ Watermark हटाने की सुविधा</li>
+      <li>✅ बिना Ads के अनुभव</li>
+    </ul>
+
+    ${plansHtml}
+
+    <!-- [बदलाव 1] Referral Program सेक्शन — बिना नया signup सिस्टम बनाए, हर टीचर का
+         Registration Number ही उसका Referral Code है, ताकि कोई अलग कोड manage न करना पड़े। -->
+    ${currentTeacher ? `
+    <hr style="border:none;border-top:1px solid var(--border);margin:18px 0;">
+    <h3 class="section-title">🎁 अपने दोस्तों को बुलाएँ, Premium मुफ़्त पाएँ</h3>
+    <p style="font-size:14px;color:#444;">अपने 3 टीचर दोस्तों को अपना Referral Code शेयर करें और साइनअप के समय वो यह कोड डालें — आपको मिलेगा <b>${REFERRAL_REWARD_MONTHS} महीने का Premium बिल्कुल मुफ़्त!</b></p>
+    <div class="reg-highlight" style="text-align:center;">
+      <div style="font-size:12px;color:#666;">आपका Referral Code</div>
+      <div style="font-size:20px;font-weight:800;letter-spacing:1px;color:var(--primary-dark);">${escapeHtml(refCode)}</div>
+    </div>
+    <p style="font-size:13px;color:#666;">अब तक जुड़े दोस्त: <b>${refProgress}/${REFERRAL_FRIENDS_NEEDED}</b> (कुल मिलाकर ${refCount} रेफरल)</p>
+    <div class="footer-actions" style="justify-content:center;">
+      <button class="btn btn-accent" onclick="shareReferralCode()">📤 दोस्तों को शेयर करें</button>
+    </div>
+    ` : ""}
+
+    ${isPremium() && daysLeft !== null ? `<p style="font-size:12px;color:#666;margin-top:10px;">आपका Premium ${daysLeft} दिन में खत्म होगा।</p>` : ""}
+  `);
+}
+window.shareReferralCode = async function(){
+  if(!currentTeacher) return;
+  const text = `मैं ${APP_BRAND_NAME} (${APP_BRAND_URL}) इस्तेमाल करता/करती हूँ — Paper व Mark Sheet बनाना बहुत आसान है! मेरे Referral Code "${currentTeacher.regNo}" से Sign Up करें और हम दोनों को फ़ायदा होगा 🎉`;
+  if(navigator.share){
+    try{ await navigator.share({ title: APP_BRAND_NAME, text }); }catch(e){ /* user cancelled */ }
+  } else {
+    try{
+      await navigator.clipboard.writeText(text);
+      alert("Share उपलब्ध नहीं है — मैसेज Clipboard में Copy कर दिया गया है।");
+    }catch(e){
+      alert(text);
+    }
+  }
+};
+function applyPlanStatusUI(){
+  const el = document.getElementById("planStatusPill");
+  if(!el || !currentTeacher) return;
+  el.classList.remove("hidden");
+  if(isPremium()){
+    el.className = "status-pill open";
+    const daysLeft = premiumDaysLeft();
+    // [बदलाव 1] अगर premiumUntil expiry है (referral/paid), बचे हुए दिन भी दिखाएँ
+    el.textContent = "⭐ Premium" + (daysLeft !== null ? " (" + daysLeft + " दिन बचे)" : "");
+  } else {
+    el.className = "status-pill closed";
+    el.textContent = "🆓 Free (" + freePrintsRemaining() + "/" + FREE_PRINT_LIMIT + " prints बचे)";
+  }
+  const adBox = document.getElementById("adsterraBox");
+  if(adBox) adBox.classList.toggle("hidden", isPremium());
+  refreshAdVisibility(); // [बदलाव 5] नए Ad Slots भी plan बदलते ही update हों
+}
+window.openUpgradeScreen = function(){ showUpgradeModal(); };
+
+// [बदलाव 21] Dashboard वाले पुराने Ad Box में अब 320x50 Banner (iframe-safe, कहीं भी दोहराया जा सकता है)
+(function initAdsterraBox(){
+  const box = document.getElementById("adsterraBox");
+  if(box) renderAtOptionsBannerIframe(box, ADSTERRA_BANNER_320x50_KEY, 320, 50);
+})();
+
+/* ---------------------------------------------------------------------
+   ADMIN-CONTROLLED APP SETTINGS (live sync)
+   Doc: appSettings/global — written by AdminApp, read here in realtime.
+     teacherAppEnabled     (bool, default true)  -> पूरा Teacher App बंद/चालू
+     studentAppEnabled     (bool, default true)  -> Student App बंद/चालू (यहाँ सिर्फ जानकारी के लिए)
+     resultSubmissionOpen  (bool, default false) -> बच्चों के Result Save/Confirm करने की अनुमति
+   --------------------------------------------------------------------- */
+let appSettings = { teacherAppEnabled: true, studentAppEnabled: true, resultSubmissionOpen: false };
+let appBootBlocked = false;
+
+function applySubmissionStatusUI(){
+  const pill = document.getElementById("submissionStatusPill");
+  if(!pill) return;
+  if(!currentTeacher){ pill.classList.add("hidden"); return; }
+  pill.classList.remove("hidden");
+  if(appSettings.resultSubmissionOpen){
+    pill.className = "status-pill open";
+    pill.textContent = "🟢 Submission: OPEN";
+  } else {
+    pill.className = "status-pill closed";
+    pill.textContent = "🔴 Submission: CLOSED";
+  }
+}
+
+window.__fs.onSnapshot(window.__fs.doc(window.__db, "appSettings", "global"), (snap) => {
+  const data = snap.exists() ? snap.data() : {};
+  appSettings = {
+    teacherAppEnabled: data.teacherAppEnabled !== false,
+    studentAppEnabled: data.studentAppEnabled !== false,
+    resultSubmissionOpen: data.resultSubmissionOpen === true
+  };
+  if(!appSettings.teacherAppEnabled){
+    appBootBlocked = true;
+    showScreen("screenAppBlocked");
+  } else if(appBootBlocked){
+    appBootBlocked = false;
+    showScreen(currentTeacher ? "screenDashboard" : "screenLogin");
+  }
+  applySubmissionStatusUI();
+}, (err) => { console.warn("appSettings sync error:", err.message); });
+
+function showScreen(id){
+  if(appBootBlocked && id !== "screenAppBlocked") return;
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  // [बदलाव 15] Login स्क्रीन पर Sticky Bottom Banner भी नहीं दिखेगा (सभी Ad यहाँ से हटाए गए)
+  const sticky = document.getElementById("stickyAdBar");
+  if(sticky) sticky.classList.toggle("hidden", id === "screenLogin");
+  // [बदलाव 10 - बग फिक्स] यहाँ से triggerPopunderAd() हटाया गया।
+  // वजह: showScreen() ऐप बूट होते समय व Login के बाद अपने-आप (बिना असली क्लिक के) भी
+  // चलता है। popunder scripts आम तौर पर पेज की "अगली क्लिक" को पकड़ने के लिए एक
+  // listener जोड़ते हैं — बिना किसी असली क्लिक के भी यह listener लग जाने से टीचर का
+  // असली पहला क्लिक (जैसे "Continue with Google" बटन) उस listener में चला जाता था
+  // और Google Login कभी शुरू ही नहीं होता था। अब Popunder सिर्फ असली एक्शन बटन दबाने
+  // पर ही ट्रिगर होता है (Save & Print, Search Result — जहाँ क्लिक पहले से ही "असली" है)।
+}
+window.showScreen = showScreen;
+
+window.goToDashboard = function(){
+  showScreen("screenDashboard");
+};
+
+
+/* =====================================================================
+   PART 1: AUTHENTICATION (Firebase Auth: Email/Password + Google)
+   Security note: passwords are NEVER stored in Firestore. Firebase Auth
+   is the sole owner of credentials. Firestore only stores the teacher's
+   profile (name, mobile, email, institute, etc.) keyed by regNo, plus
+   an `authUid` field used to link the Firestore profile to the Auth user.
+   ===================================================================== */
+
+// ---- App boot: Firebase Auth persists sessions automatically (IndexedDB),
+// so we just listen for auth state instead of trusting anything in localStorage. ----
+onAuthStateChanged(auth, async (user) => {
+  if(!user){
+    currentTeacher = null;
+    document.getElementById("topbarUser").textContent = "";
+    document.getElementById("logoutBtn").classList.add("hidden");
+    applySubmissionStatusUI();
+    // Only fall back to the login screen if we're not already looking at
+    // register / forgot-password / complete-profile screens.
+    const activeId = document.querySelector(".screen.active")?.id;
+    if(!["screenRegister","screenForgotPassword","screenCompleteProfile"].includes(activeId)){
+      showScreen("screenLogin");
+    }
+    return;
+  }
+
+  try{
+    const profile = await findTeacherProfileByUid(user.uid);
+    if(profile){
+      currentTeacher = profile;
+      loginSuccess();
+    } else {
+      // Signed in with Firebase Auth (typically via Google) but no matching
+      // Firestore teacher profile yet -> ask them to complete registration.
+      document.getElementById("cpName").value = user.displayName || "";
+      showScreen("screenCompleteProfile");
+    }
+  }catch(err){
+    // [बदलाव 18 - बग फिक्स] पहले यह Error सिर्फ Console में जाता था (console.error), इसलिए
+    // Google Login के बाद अगर Firestore से Profile ढूँढने में कोई दिक्कत आती थी (जैसे Firestore
+    // Security Rules या Permission की समस्या), तो टीचर को कुछ पता ही नहीं चलता था — बस चुपचाप
+    // वापस Login स्क्रीन पर आ जाता था। अब यह असली वजह लाल बैनर में साफ़ दिखेगी।
+    showGlobalError("Login के बाद Profile लोड करने में Error: " + err.message);
+    showScreen("screenLogin");
+  }
+});
+
+showScreen("screenLoading");
+
+async function findTeacherProfileByUid(uid){
+  const q = window.__fs.query(
+    window.__fs.collection(window.__db, "teachers"),
+    window.__fs.where("authUid", "==", uid)
+  );
+  const snap = await window.__fs.getDocs(q);
+  let found = null;
+  snap.forEach(d => {
+    found = { regNo: d.id, ...d.data() };
+    if(!found.plan) found.plan = "free";
+    if(typeof found.freePrintsUsed !== "number") found.freePrintsUsed = 0;
+  });
+  return found;
+}
+
+// [बदलाव 19 - बग फिक्स] वापस signInWithPopup() पर लौटे — क्योंकि टीचर के Admin App में
+// Popup वाला तरीका पहले से बिलकुल ठीक चल रहा है, यानी उनके Phone/Browser में Popup की कोई
+// दिक्कत नहीं है। पिछली बार signInWithRedirect() पर स्विच करना एक आम Mobile-compatibility
+// अंदाज़े पर आधारित था, जो इस असली मामले में सही साबित नहीं हुआ (Redirect पूरे पेज को भेजकर
+// वापस लाता है, जिसके लिए Session ठीक से बचे रहना ज़रूरी है — यही टूट रहा था)। अब यह Teacher
+// App भी Admin App जैसा ही, Proven तरीका (Popup) इस्तेमाल करेगा।
+// [बदलाव 14] पुराना Mobile+Password Login सिस्टम वापस जोड़ा गया
+async function findTeacherEmailByMobile(number){
+  const q = window.__fs.query(
+    window.__fs.collection(window.__db, "teachers"),
+    window.__fs.where("number", "==", number)
+  );
+  const snap = await window.__fs.getDocs(q);
+  let email = null;
+  snap.forEach(d => { email = d.data().email; });
+  return email;
+}
+
+window.handleLogin = async function(){
+  const number = document.getElementById("loginNumber").value.trim();
+  const pw = document.getElementById("loginPassword").value;
+  const msgBox = document.getElementById("loginMsg");
+  msgBox.innerHTML = "";
+
+  if(!/^[0-9]{10}$/.test(number)){
+    msgBox.innerHTML = '<div class="msg msg-error">कृपया सही 10 अंकों का मोबाइल नंबर डालें</div>';
+    return;
+  }
+  if(!pw){
+    msgBox.innerHTML = '<div class="msg msg-error">कृपया Password डालें</div>';
+    return;
+  }
+
+  try{
+    const email = await findTeacherEmailByMobile(number);
+    if(!email){
+      msgBox.innerHTML = '<div class="msg msg-error">इस मोबाइल नंबर से कोई अकाउंट नहीं मिला। कृपया Create Account करें।</div>';
+      return;
+    }
+    await signInWithEmailAndPassword(auth, email, pw);
+    document.getElementById("loginNumber").value = "";
+    document.getElementById("loginPassword").value = "";
+    // onAuthStateChanged will pick this up and call loginSuccess()
+  }catch(err){
+    if(err.code === "auth/wrong-password" || err.code === "auth/invalid-credential"){
+      msgBox.innerHTML = '<div class="msg msg-error">गलत Password! दोबारा कोशिश करें</div>';
+    } else {
+      msgBox.innerHTML = '<div class="msg msg-error">Error: ' + err.message + '</div>';
+    }
+  }
+};
+
+window.loginWithGoogle = async function(){
+  try{
+    await signInWithPopup(auth, googleProvider);
+    // onAuthStateChanged इसे पकड़कर आगे की Routing कर देगा (Profile मिली -> Dashboard,
+    // Profile नहीं मिली -> Complete Profile स्क्रीन)
+  }catch(err){
+    showGlobalError("Google Login Error: " + err.message); // [बदलाव 16]
+  }
+};
+
+function loginSuccess(){
+  document.getElementById("topbarUser").textContent = "👤 " + currentTeacher.name + " (" + currentTeacher.regNo + ")";
+  document.getElementById("logoutBtn").classList.remove("hidden");
+  applySubmissionStatusUI();
+  applyPlanStatusUI();
+  goToDashboard();
+}
+
+window.logoutTeacher = async function(){
+  await signOut(auth);
+  currentTeacher = null;
+  document.getElementById("topbarUser").textContent = "";
+  document.getElementById("logoutBtn").classList.add("hidden");
+  document.getElementById("loginMsg").innerHTML = "";
+  showScreen("screenLogin");
+};
+
+// ---- Register / Create Account ----
+window.openRegisterScreen = function(){
+  document.getElementById("registerMsg").innerHTML = "";
+  document.getElementById("regName").value = "";
+  document.getElementById("regNumber").value = "";
+  document.getElementById("regEmail").value = "";
+  document.getElementById("regTeacherType").value = "School";
+  document.getElementById("regDiseCode").value = "";
+  document.getElementById("regInstitute").value = "";
+  document.getElementById("regPassword").value = "";
+  document.getElementById("regAddress").value = "";
+  document.getElementById("regReferralCode").value = "";
+  toggleDiseCodeField();
+  showScreen("screenRegister");
+};
+
+window.toggleDiseCodeField = function(){
+  const type = document.getElementById("regTeacherType").value;
+  document.getElementById("regDiseBox").classList.toggle("hidden", type !== "School");
+  document.getElementById("regInstituteLabel").textContent = type === "School" ? "School का नाम" : "Coaching का नाम";
+};
+
+async function generateUniqueRegistrationNumber(){
+  for(let attempt = 0; attempt < 20; attempt++){
+    const candidate = "TCH" + Math.floor(100000 + Math.random() * 900000);
+    const snap = await window.__fs.getDoc(window.__fs.doc(window.__db, "teachers", candidate));
+    if(!snap.exists()) return candidate;
+  }
+  throw new Error("Registration Number generate नहीं हो पाया, दोबारा कोशिश करें");
+}
+
+async function createTeacherProfile({ uid, name, number, email, teacherType, diseCode, instituteName, address, referredBy }){
+  // Check mobile number uniqueness in Firestore profile data
+  const existingQ = window.__fs.query(
+    window.__fs.collection(window.__db, "teachers"),
+    window.__fs.where("number", "==", number)
+  );
+  const existingSnap = await window.__fs.getDocs(existingQ);
+  if(!existingSnap.empty){
+    throw new Error("यह मोबाइल नंबर पहले से Register है। कृपया Login करें।");
+  }
+
+  const regNo = await generateUniqueRegistrationNumber();
+  const teacherData = {
+    authUid: uid, name, number, email, teacherType,
+    diseCode: teacherType === "School" ? diseCode : "",
+    instituteName, address,
+    registrationNumber: regNo,
+    papersCount: 0, marksheetsCount: 0, testResultsCount: 0,
+    // [बदलाव 2] Referral Program के लिए नई फ़ील्ड्स:
+    plan: "free", premiumUntil: null,       // हर नया टीचर Free plan से शुरू होता है
+    referredBy: referredBy || null,          // किस टीचर के Referral Code से यह साइनअप हुआ
+    referralCount: 0,                        // इस टीचर ने खुद कितने दोस्त जोड़े
+    createdAt: new Date().toISOString()
+  };
+  await window.__fs.setDoc(window.__fs.doc(window.__db, "teachers", regNo), teacherData);
+  return { regNo, ...teacherData };
+}
+
+/* -----------------------------------------------------------------------
+   [बदलाव 2] REFERRAL REWARD LOGIC
+   जब कोई नया टीचर वैध Referral Code डालकर साइनअप करता है, तो referrer की
+   referralCount 1 बढ़ाई जाती है। हर ${REFERRAL_FRIENDS_NEEDED} दोस्तों पर,
+   referrer को ${REFERRAL_REWARD_MONTHS} महीने का Premium मुफ़्त मिलता है
+   (अगर पहले से Premium चल रहा है तो उसमें आगे जोड़ दिया जाता है, खत्म नहीं होने दिया जाता)।
+   ----------------------------------------------------------------------- */
+async function applyReferralIfAny(referralCodeRaw, newTeacherRegNo){
+  const referralCode = (referralCodeRaw || "").trim().toUpperCase();
+  if(!referralCode || referralCode === newTeacherRegNo) return; // खाली या खुद का कोड — अनदेखा करें
+
+  try{
+    const refDocRef = window.__fs.doc(window.__db, "teachers", referralCode);
+    const refSnap = await window.__fs.getDoc(refDocRef);
+    if(!refSnap.exists()) return; // गलत/अमान्य कोड — चुपचाप अनदेखा करें, साइनअप नहीं रुकना चाहिए
+
+    const referrer = refSnap.data();
+    const newCount = (referrer.referralCount || 0) + 1;
+    const updateData = { referralCount: window.__fs.increment(1) };
+
+    if(newCount % REFERRAL_FRIENDS_NEEDED === 0){
+      // इनाम का समय! मौजूदा premiumUntil (अगर भविष्य की तारीख है) में महीने जोड़ें,
+      // वरना आज की तारीख से नए महीने गिनें।
+      const base = (referrer.premiumUntil && new Date(referrer.premiumUntil).getTime() > Date.now())
+        ? new Date(referrer.premiumUntil)
+        : new Date();
+      base.setMonth(base.getMonth() + REFERRAL_REWARD_MONTHS);
+      updateData.plan = "premium";
+      updateData.premiumUntil = base.toISOString();
+    }
+
+    await window.__fs.updateDoc(refDocRef, updateData);
+  }catch(err){
+    console.warn("Referral reward apply नहीं हो पाया:", err.message); // साइनअप फिर भी सफल रहेगा
+  }
+}
+
+// ---- Complete Profile (Google sign-in के बाद असली "नया अकाउंट बनाने" वाला फॉर्म) ----
+window.toggleCpDiseCodeField = function(){
+  const type = document.getElementById("cpTeacherType").value;
+  document.getElementById("cpDiseBox").classList.toggle("hidden", type !== "School");
+  document.getElementById("cpInstituteLabel").textContent = type === "School" ? "School का नाम" : "Coaching का नाम";
+};
+
+window.submitCompleteProfile = async function(){
+  const msgBox = document.getElementById("cpMsg");
+  const user = auth.currentUser;
+  if(!user){ showScreen("screenLogin"); return; }
+
+  const name = document.getElementById("cpName").value.trim();
+  const number = document.getElementById("cpNumber").value.trim();
+  const teacherType = document.getElementById("cpTeacherType").value;
+  const diseCode = document.getElementById("cpDiseCode").value.trim();
+  const instituteName = document.getElementById("cpInstitute").value.trim();
+  const address = document.getElementById("cpAddress").value.trim();
+  const referralCode = document.getElementById("cpReferralCode").value.trim(); // [बदलाव 7]
+
+  if(!name || !number || !instituteName || !address){
+    msgBox.innerHTML = '<div class="msg msg-error">कृपया सभी जरूरी फील्ड्स भरें</div>';
+    return;
+  }
+  if(!/^[0-9]{10}$/.test(number)){
+    msgBox.innerHTML = '<div class="msg msg-error">कृपया सही 10 अंकों का मोबाइल नंबर डालें</div>';
+    return;
+  }
+  if(teacherType === "School" && !diseCode){
+    msgBox.innerHTML = '<div class="msg msg-error">कृपया DISE Code डालें</div>';
+    return;
+  }
+
+  try{
+    const profile = await createTeacherProfile({
+      uid: user.uid, name, number, email: user.email || "", teacherType, diseCode, instituteName, address,
+      referredBy: referralCode ? referralCode.toUpperCase() : null // [बदलाव 7]
+    });
+    currentTeacher = profile;
+    if(referralCode){
+      await applyReferralIfAny(referralCode, profile.regNo); // [बदलाव 7] referrer को इनाम/count अपडेट
+    }
+    loginSuccess();
+  }catch(err){
+    msgBox.innerHTML = '<div class="msg msg-error">Error: ' + err.message + '</div>';
+  }
+};
+
+// [बदलाव 14] पुराना Email/Password वाला Create Account फॉर्म वापस जोड़ा गया
+window.handleRegister = async function(){
+  const name = document.getElementById("regName").value.trim();
+  const number = document.getElementById("regNumber").value.trim();
+  const email = document.getElementById("regEmail").value.trim();
+  const teacherType = document.getElementById("regTeacherType").value;
+  const diseCode = document.getElementById("regDiseCode").value.trim();
+  const instituteName = document.getElementById("regInstitute").value.trim();
+  const password = document.getElementById("regPassword").value;
+  const address = document.getElementById("regAddress").value.trim();
+  const referralCode = document.getElementById("regReferralCode").value.trim();
+  const msgBox = document.getElementById("registerMsg");
+  msgBox.innerHTML = "";
+
+  if(!name || !number || !email || !instituteName || !password || !address){
+    msgBox.innerHTML = '<div class="msg msg-error">कृपया सभी जरूरी फील्ड्स भरें</div>';
+    return;
+  }
+  if(!/^[0-9]{10}$/.test(number)){
+    msgBox.innerHTML = '<div class="msg msg-error">कृपया सही 10 अंकों का मोबाइल नंबर डालें</div>';
+    return;
+  }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    msgBox.innerHTML = '<div class="msg msg-error">कृपया सही Email Address डालें</div>';
+    return;
+  }
+  if(teacherType === "School" && !diseCode){
+    msgBox.innerHTML = '<div class="msg msg-error">कृपया DISE Code डालें</div>';
+    return;
+  }
+
+  try{
+    const cred = await createUserWithEmailAndPassword(auth, email, password);
+    const profile = await createTeacherProfile({
+      uid: cred.user.uid, name, number, email, teacherType, diseCode, instituteName, address,
+      referredBy: referralCode ? referralCode.toUpperCase() : null
+    });
+    currentTeacher = profile;
+    if(referralCode){
+      await applyReferralIfAny(referralCode, profile.regNo);
+    }
+    msgBox.innerHTML = '<div class="msg msg-success">Account बन गया ✅ आपका Registration Number: <b>' + profile.regNo + '</b></div>';
+    setTimeout(() => { loginSuccess(); }, 1200);
+  }catch(err){
+    if(err.code === "auth/email-already-in-use"){
+      msgBox.innerHTML = '<div class="msg msg-error">यह Email पहले से किसी अकाउंट में इस्तेमाल हो रहा है</div>';
+    } else if(err.code === "auth/weak-password"){
+      msgBox.innerHTML = '<div class="msg msg-error">Password कमज़ोर है, कम से कम 6 अक्षर का password बनाएं</div>';
+    } else {
+      msgBox.innerHTML = '<div class="msg msg-error">Error: ' + err.message + '</div>';
+    }
+  }
+};
+
+// ---- Forgot Password (Firebase Auth का अपना सुरक्षित reset-email फ्लो) ----
+window.openForgotPasswordScreen = function(){
+  document.getElementById("fpMsg").innerHTML = "";
+  document.getElementById("fpFormWrap").classList.remove("hidden");
+  document.getElementById("fpEmail").value = "";
+  showScreen("screenForgotPassword");
+};
+
+window.submitForgotPassword = async function(){
+  const email = document.getElementById("fpEmail").value.trim();
+  const msgBox = document.getElementById("fpMsg");
+  msgBox.innerHTML = "";
+
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    msgBox.innerHTML = '<div class="msg msg-error">कृपया सही Email Address डालें</div>';
+    return;
+  }
+
+  try{
+    await sendPasswordResetEmail(auth, email);
+    document.getElementById("fpFormWrap").classList.add("hidden");
+    msgBox.innerHTML = '<div class="msg msg-info">Password Reset Link आपके Email पर भेज दिया गया है ✅ कृपया अपना Inbox चेक करें।</div>';
+  }catch(err){
+    // Avoid confirming/denying whether an email exists (prevents account enumeration)
+    document.getElementById("fpFormWrap").classList.add("hidden");
+    msgBox.innerHTML = '<div class="msg msg-info">अगर यह Email किसी अकाउंट से जुड़ा है, तो उस पर Reset Link भेज दिया गया है ✅</div>';
+  }
+};
+
+/* =====================================================================
+   PART 2: PROFILE
+   ===================================================================== */
+window.openProfileScreen = function(){
+  if(!currentTeacher) return;
+  document.getElementById("profileMsg").innerHTML = "";
+  document.getElementById("profileRegNoDisplay").innerHTML = "Registration Number: <b>" + currentTeacher.regNo + "</b> &nbsp;|&nbsp; Teacher Type: <b>" + currentTeacher.teacherType + "</b>";
+  document.getElementById("pfName").value = currentTeacher.name || "";
+  document.getElementById("pfInstituteLabel").textContent = currentTeacher.teacherType === "School" ? "School का नाम" : "Coaching का नाम";
+  document.getElementById("pfInstitute").value = currentTeacher.instituteName || "";
+  document.getElementById("pfDiseBox").classList.toggle("hidden", currentTeacher.teacherType !== "School");
+  document.getElementById("pfDiseCode").value = currentTeacher.diseCode || "";
+  document.getElementById("pfMobile").value = currentTeacher.number || "";
+  document.getElementById("pfCurrentPassword").value = "";
+  document.getElementById("pfPassword").value = "";
+  document.getElementById("pfAddress").value = currentTeacher.address || "";
+  showScreen("screenProfile");
+};
+
+window.saveProfile = async function(){
+  const msgBox = document.getElementById("profileMsg");
+  const name = document.getElementById("pfName").value.trim();
+  const instituteName = document.getElementById("pfInstitute").value.trim();
+  const diseCode = document.getElementById("pfDiseCode").value.trim();
+  const mobile = document.getElementById("pfMobile").value.trim();
+  const currentPassword = document.getElementById("pfCurrentPassword").value;
+  const newPassword = document.getElementById("pfPassword").value;
+  const address = document.getElementById("pfAddress").value.trim();
+
+  if(!name || !instituteName || !mobile || !address){
+    msgBox.innerHTML = '<div class="msg msg-error">कृपया सभी जरूरी फील्ड्स भरें</div>';
+    return;
+  }
+  if(!/^[0-9]{10}$/.test(mobile)){
+    msgBox.innerHTML = '<div class="msg msg-error">कृपया सही 10 अंकों का मोबाइल नंबर डालें</div>';
+    return;
+  }
+  if(newPassword && !currentPassword){
+    msgBox.innerHTML = '<div class="msg msg-error">Password बदलने के लिए कृपया अपना Current Password भी डालें</div>';
+    return;
+  }
+
+  try{
+    if(mobile !== currentTeacher.number){
+      const q = window.__fs.query(
+        window.__fs.collection(window.__db, "teachers"),
+        window.__fs.where("number", "==", mobile)
+      );
+      const snap = await window.__fs.getDocs(q);
+      if(!snap.empty){
+        msgBox.innerHTML = '<div class="msg msg-error">यह मोबाइल नंबर पहले से किसी और अकाउंट में इस्तेमाल हो रहा है</div>';
+        return;
+      }
+    }
+
+    // [बदलाव 14] Password बदलना — सिर्फ Email/Password वाले accounts के लिए (Google account पर लागू नहीं)
+    if(newPassword){
+      if(!auth.currentUser || !auth.currentUser.email){
+        msgBox.innerHTML = '<div class="msg msg-error">Password change सिर्फ Email/Password अकाउंट के लिए उपलब्ध है</div>';
+        return;
+      }
+      const cred = EmailAuthProvider.credential(auth.currentUser.email, currentPassword);
+      await reauthenticateWithCredential(auth.currentUser, cred);
+      await updatePassword(auth.currentUser, newPassword);
+    }
+
+    const updateData = { name, instituteName, diseCode, number: mobile, address };
+    await window.__fs.updateDoc(window.__fs.doc(window.__db, "teachers", currentTeacher.regNo), updateData);
+
+    currentTeacher = { ...currentTeacher, ...updateData };
+    document.getElementById("pfCurrentPassword").value = "";
+    document.getElementById("pfPassword").value = "";
+    document.getElementById("topbarUser").textContent = "👤 " + currentTeacher.name + " (" + currentTeacher.regNo + ")";
+    msgBox.innerHTML = '<div class="msg msg-success">Profile Update हो गई ✅</div>';
+  }catch(err){
+    if(err.code === "auth/wrong-password" || err.code === "auth/invalid-credential"){
+      msgBox.innerHTML = '<div class="msg msg-error">Current Password गलत है</div>';
+      return;
+    }
+    msgBox.innerHTML = '<div class="msg msg-error">Error: ' + err.message + '</div>';
+  }
+};
+
+// Fill teacher/institute autofill fields on any screen given an id-prefix map
+function applyProfileAutofill(ids){
+  if(!currentTeacher) return;
+  if(ids.teacherName) document.getElementById(ids.teacherName).value = currentTeacher.name || "";
+  if(ids.instituteLabel) document.getElementById(ids.instituteLabel).textContent = currentTeacher.teacherType === "School" ? "School का नाम" : "Coaching / Institute का नाम";
+  if(ids.institute) document.getElementById(ids.institute).value = currentTeacher.instituteName || "";
+  if(ids.mobile) document.getElementById(ids.mobile).value = currentTeacher.number || "";
+  if(ids.regNo) document.getElementById(ids.regNo).value = currentTeacher.regNo || "";
+  if(ids.diseBox) document.getElementById(ids.diseBox).classList.toggle("hidden", currentTeacher.teacherType !== "School");
+  if(ids.diseCode) document.getElementById(ids.diseCode).value = currentTeacher.diseCode || "";
+  if(ids.address) document.getElementById(ids.address).value = currentTeacher.address || "";
+}
+
+
+/* =====================================================================
+   PART 3: ADD STUDENTS
+   ===================================================================== */
+let allStudents = [];
+
+window.openAddStudentsScreen = async function(){
+  if(!currentTeacher) return;
+  document.getElementById("asMsg").innerHTML = "";
+  document.getElementById("asName").value = "";
+  document.getElementById("asFatherName").value = "";
+  document.getElementById("asClass").value = "";
+  document.getElementById("asSection").value = "";
+  document.getElementById("asRollNo").value = "";
+  document.getElementById("asSearch").value = "";
+  await loadStudents();
+  renderStudentList();
+  showScreen("screenAddStudents");
+};
+
+async function loadStudents(){
+  const q = window.__fs.query(
+    window.__fs.collection(window.__db, "students"),
+    window.__fs.where("teacherRegNo", "==", currentTeacher.regNo)
+  );
+  const snap = await window.__fs.getDocs(q);
+  allStudents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  allStudents.sort((a,b) => (a.name||"").localeCompare(b.name||""));
+}
+
+window.addStudent = async function(){
+  const msgBox = document.getElementById("asMsg");
+  const name = document.getElementById("asName").value.trim();
+  const fatherName = document.getElementById("asFatherName").value.trim();
+  const cls = document.getElementById("asClass").value.trim();
+  const section = document.getElementById("asSection").value.trim();
+  const rollNo = document.getElementById("asRollNo").value.trim();
+
+  if(!name || !cls){
+    msgBox.innerHTML = '<div class="msg msg-error">कृपया Student Name और Class भरें</div>';
+    return;
+  }
+
+  try{
+    await window.__fs.addDoc(window.__fs.collection(window.__db, "students"), {
+      teacherRegNo: currentTeacher.regNo,
+      name, fatherName, class: cls, section, rollNo,
+      createdAt: new Date().toISOString()
+    });
+    msgBox.innerHTML = '<div class="msg msg-success">बच्चा ऐड हो गया ✅</div>';
+    document.getElementById("asName").value = "";
+    document.getElementById("asFatherName").value = "";
+    document.getElementById("asRollNo").value = "";
+    await loadStudents();
+    renderStudentList();
+  }catch(err){
+    msgBox.innerHTML = '<div class="msg msg-error">Error: ' + err.message + '</div>';
+  }
+};
+
+window.renderStudentList = function(){
+  const search = (document.getElementById("asSearch").value || "").toLowerCase();
+  const wrap = document.getElementById("asListWrap");
+  const filtered = allStudents.filter(s =>
+    (s.name||"").toLowerCase().includes(search) ||
+    (s.class||"").toLowerCase().includes(search) ||
+    (s.rollNo||"").toLowerCase().includes(search)
+  );
+  if(filtered.length === 0){ wrap.innerHTML = "<p>कोई बच्चा नहीं मिला।</p>"; return; }
+  wrap.innerHTML = `<table class="list-table"><tr><th>Name</th><th>Father's Name</th><th>Class</th><th>Section</th><th>Roll No</th><th>Action</th></tr>` +
+    filtered.map(s => `<tr>
+      <td>${escapeHtml(s.name)}</td>
+      <td>${escapeHtml(s.fatherName||"-")}</td>
+      <td>${escapeHtml(s.class)}</td>
+      <td>${escapeHtml(s.section||"-")}</td>
+      <td>${escapeHtml(s.rollNo||"-")}</td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="openEditStudentModal('${s.id}')">Update</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteStudent('${s.id}')">Delete</button>
+      </td>
+    </tr>`).join("") + `</table>`;
+};
+
+// ---- Update Student Info ----
+window.openEditStudentModal = function(id){
+  const s = allStudents.find(x => x.id === id);
+  if(!s) return;
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.id = "editStudentOverlay";
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <h3>बच्चे की जानकारी अपडेट करें</h3>
+      <div id="esMsg"></div>
+      <label>Student Name</label>
+      <input type="text" id="esName" value="${escapeAttr(s.name)}">
+      <label>Father's Name</label>
+      <input type="text" id="esFatherName" value="${escapeAttr(s.fatherName||"")}">
+      <div class="row">
+        <div><label>Class</label><input type="text" id="esClass" value="${escapeAttr(s.class)}"></div>
+        <div><label>Section</label><input type="text" id="esSection" value="${escapeAttr(s.section||"")}"></div>
+        <div><label>Roll No.</label><input type="text" id="esRollNo" value="${escapeAttr(s.rollNo||"")}"></div>
+      </div>
+      <div class="footer-actions">
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('editStudentOverlay').remove()">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="saveEditStudent('${id}')">Save</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+};
+
+window.saveEditStudent = async function(id){
+  const msgBox = document.getElementById("esMsg");
+  const name = document.getElementById("esName").value.trim();
+  const fatherName = document.getElementById("esFatherName").value.trim();
+  const cls = document.getElementById("esClass").value.trim();
+  const section = document.getElementById("esSection").value.trim();
+  const rollNo = document.getElementById("esRollNo").value.trim();
+  if(!name || !cls){
+    msgBox.innerHTML = '<div class="msg msg-error">Student Name और Class ज़रूरी है</div>';
+    return;
+  }
+  try{
+    await window.__fs.updateDoc(window.__fs.doc(window.__db, "students", id), {
+      name, fatherName, class: cls, section, rollNo
+    });
+    document.getElementById("editStudentOverlay").remove();
+    await loadStudents();
+    renderStudentList();
+  }catch(err){
+    msgBox.innerHTML = '<div class="msg msg-error">Error: ' + err.message + '</div>';
+  }
+};
+
+window.deleteStudent = async function(id){
+  if(!confirm("क्या आप इस बच्चे को हटाना चाहते हैं?")) return;
+  await window.__fs.deleteDoc(window.__fs.doc(window.__db, "students", id));
+  await loadStudents();
+  renderStudentList();
+};
+
+
+/* =====================================================================
+   PART 4: PAPER EDITOR (rich text formatting, AI command, save/print)
+   ===================================================================== */
+window.fmt = function(cmd, value){
+  document.getElementById("editorArea").focus();
+  document.execCommand(cmd, false, value || null);
+};
+
+window.clearEditor = function(){
+  if(confirm("क्या आप पूरा content साफ करना चाहते हैं?")){
+    document.getElementById("editorArea").innerHTML = "";
+  }
+};
+
+// ---- Insert Picture into the Rich Text Editor ----
+window.triggerImageInsert = function(){
+  document.getElementById("editorImageInput").value = "";
+  document.getElementById("editorImageInput").click();
+};
+window.insertImageFromFile = function(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  if(file.size > 3 * 1024 * 1024){
+    alert("कृपया 3MB से छोटी Image चुनें।");
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(e){
+    document.getElementById("editorArea").focus();
+    document.execCommand("insertHTML", false, `<img src="${e.target.result}" style="max-width:100%;margin:8px 0;">`);
+  };
+  reader.readAsDataURL(file);
+};
+
+// ---- [बदलाव 3] LaTeX Math Formula डालने के लिए नया फ़ंक्शन ----
+// टीचर से prompt() के ज़रिए LaTeX कोड (जैसे \frac{1}{2}, \sqrt{x}) लिया जाता है,
+// फिर उसे $...$ delimiters में लपेटकर editorArea में (कर्सर की जगह पर) डाल दिया जाता है।
+// insertText का इस्तेमाल किया गया है (insertHTML नहीं), ताकि बैकस्लैश (\) और
+// { } जैसे चिह्न HTML की तरह पार्स न हों और जस के तस plain text रहें।
+window.insertMathFormula = function(){
+  const formula = prompt(
+    "अपना LaTeX फॉर्मूला लिखें (उदाहरण: \\frac{1}{2}  या  \\sqrt{x^2+y^2}  या  \\vert x \\vert):",
+    ""
+  );
+  if(formula === null || formula.trim() === "") return; // टीचर ने Cancel किया या खाली छोड़ा
+
+  const editor = document.getElementById("editorArea");
+  editor.focus();
+  const wrapped = "$" + formula.trim() + "$"; // KaTeX inline-math delimiter
+  const inserted = document.execCommand("insertText", false, wrapped);
+  if(!inserted){
+    // कुछ पुराने ब्राउज़र में insertText काम न करे तो यह fallback है
+    editor.innerHTML += escapeHtml(wrapped);
+  }
+};
+
+window.openPaperScreen = function(){
+  applyProfileAutofill({
+    teacherName: "paperTeacherName", instituteLabel: "paperInstituteLabel", institute: "paperInstitute",
+    mobile: "paperMobile", regNo: "paperRegNo", diseBox: "paperDiseBox", diseCode: "paperDiseCode", address: "paperAddress"
+  });
+  showScreen("screenPaper");
+};
+
+window.openAiCommandModal = function(){
+  document.getElementById("aiModal").classList.remove("hidden");
+};
+window.closeAiModal = function(){
+  document.getElementById("aiModal").classList.add("hidden");
+};
+
+const colorWords = {
+  red:"#e53935", blue:"#1e4d8c", green:"#1e8e5a", black:"#000000", white:"#ffffff",
+  yellow:"#fdd835", orange:"#ff8c00", purple:"#8e24aa", pink:"#ec407a", grey:"#757575", gray:"#757575"
+};
+const sizeWords = { small:"2", medium:"4", large:"6", huge:"7" };
+
+window.runAiCommand = function(){
+  const raw = document.getElementById("aiCommandInput").value.trim().toLowerCase();
+  document.getElementById("editorArea").focus();
+
+  if(!raw){ closeAiModal(); return; }
+
+  if(raw.includes("clear all")){
+    document.getElementById("editorArea").innerHTML = "";
+  } else if(raw.includes("clear")){
+    document.execCommand("removeFormat");
+  } else {
+    if(raw.includes("bold")) document.execCommand("bold");
+    if(raw.includes("italic")) document.execCommand("italic");
+    if(raw.includes("underline")) document.execCommand("underline");
+    if(raw.includes("strike")) document.execCommand("strikeThrough");
+    if(raw.includes("align center")) document.execCommand("justifyCenter");
+    if(raw.includes("align left")) document.execCommand("justifyLeft");
+    if(raw.includes("align right")) document.execCommand("justifyRight");
+
+    for(const word in colorWords){
+      if(raw.includes("background " + word)){
+        document.execCommand("hiliteColor", false, colorWords[word]);
+      } else if(raw.includes("color " + word)){
+        document.execCommand("foreColor", false, colorWords[word]);
+      }
+    }
+    for(const word in sizeWords){
+      if(raw.includes("size " + word)){
+        document.execCommand("fontSize", false, sizeWords[word]);
+      }
+    }
+  }
+
+  document.getElementById("aiCommandInput").value = "";
+  closeAiModal();
+};
+
+/* =====================================================================
+   [बदलाव 23] AI QUESTION PAPER GENERATOR — Gemini API
+   ⚠️ ज़रूरी सुरक्षा नोट: यह API Key सीधे इसी फ़ाइल में है, इसलिए कोई भी टीचर
+   "View Source" करके इसे देख सकता है। छोटे स्तर पर चलाने के लिए यह ठीक है
+   (जैसे Payment वाले हिस्से में भी बताया गया था), लेकिन अगर बहुत ज़्यादा
+   इस्तेमाल होने लगे तो कोई और भी आपकी Key का Quota खर्च कर सकता है। पूरी तरह
+   सुरक्षित करने का तरीका: इस Key को एक Firebase Cloud Function के पीछे छुपाना,
+   और टीचर ऐप सिर्फ उस Function को कॉल करे — वह एक अलग/बड़ा काम है।
+   ===================================================================== */
+const GEMINI_API_KEY = "AIzaSyBRHwNDwDaBlbVJt9TgJOW2uht9r2OjUlE";
+const GEMINI_MODEL = "gemini-3.5-flash";
+
+window.openAiPaperGenModal = function(){
+  openViewModal(`
+    <h3>🧠 AI से प्रश्न पत्र बनाएं</h3>
+    <label>विषय (Subject)</label>
+    <input type="text" id="aiPgSubject" placeholder="जैसे: विज्ञान">
+    <label>कक्षा (Class)</label>
+    <input type="text" id="aiPgClass" placeholder="जैसे: 8वीं">
+    <label>अध्याय (Chapter) — वैकल्पिक</label>
+    <input type="text" id="aiPgChapter" placeholder="जैसे: प्रकाश का परावर्तन">
+    <label>कठिनाई स्तर (Difficulty)</label>
+    <select id="aiPgDifficulty">
+      <option value="Easy">Easy</option>
+      <option value="Medium" selected>Medium</option>
+      <option value="Hard">Hard</option>
+    </select>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-weight:normal;">
+      <input type="checkbox" id="aiPgAnswerKey" style="width:auto;"> साथ में उत्तर कुंजी (Answer Key) भी बनाएं
+    </label>
+    <div id="aiPgMsg"></div>
+    <div class="footer-actions">
+      <button class="btn btn-primary btn-sm" id="aiPgGenerateBtn" onclick="generateAiPaper()">✨ पेपर बनाएं</button>
+    </div>
+  `);
+};
+
+window.generateAiPaper = async function(){
+  const subject = document.getElementById("aiPgSubject").value.trim();
+  const cls = document.getElementById("aiPgClass").value.trim();
+  const chapter = document.getElementById("aiPgChapter").value.trim();
+  const difficulty = document.getElementById("aiPgDifficulty").value;
+  const wantAnswerKey = document.getElementById("aiPgAnswerKey").checked;
+  const msgBox = document.getElementById("aiPgMsg");
+  const btn = document.getElementById("aiPgGenerateBtn");
+
+  if(!subject || !cls){
+    msgBox.innerHTML = '<div class="msg msg-error">कृपया कम से कम विषय और कक्षा भरें</div>';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "बन रहा है... ⏳";
+  msgBox.innerHTML = '<div class="msg msg-info">AI प्रश्न पत्र तैयार कर रहा है, कृपया कुछ सेकंड रुकें...</div>';
+
+  const prompt = `आप एक अनुभवी भारतीय स्कूल टीचर हैं। कक्षा "${cls}" के विषय "${subject}"` +
+    (chapter ? ` के अध्याय "${chapter}"` : "") +
+    ` से एक प्रश्न पत्र हिंदी में तैयार करें। कठिनाई स्तर: ${difficulty}।
+इसमें ये भाग हों: (A) 5 बहुविकल्पीय प्रश्न (MCQ, हर एक में 4 विकल्प), (B) 5 लघु उत्तरीय प्रश्न, (C) 3 दीर्घ उत्तरीय प्रश्न।
+${wantAnswerKey ? 'अंत में एक अलग "उत्तर कुंजी (Answer Key)" सेक्शन भी दें जिसमें सभी प्रश्नों के सही उत्तर हों।' : "उत्तर कुंजी मत दें, सिर्फ प्रश्न दें।"}
+सिर्फ प्रश्न पत्र का HTML Content दें (कोई भूमिका, कोई माफ़ी, कोई अतिरिक्त बातचीत नहीं)। Formatting के लिए सिर्फ इन HTML Tags का इस्तेमाल करें: <h3>, <p>, <b>, <ol>, <li>, <br>. कोई Markdown (जैसे **, #) इस्तेमाल न करें।`;
+
+  try{
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": GEMINI_API_KEY },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      }
+    );
+    const data = await res.json();
+    if(!res.ok){
+      throw new Error((data.error && data.error.message) || ("HTTP " + res.status));
+    }
+    const text = (data.candidates && data.candidates[0] && data.candidates[0].content &&
+      data.candidates[0].content.parts || []).map(p => p.text || "").join("");
+    if(!text.trim()){
+      throw new Error("AI से कोई जवाब नहीं मिला, दोबारा कोशिश करें");
+    }
+    const editor = document.getElementById("editorArea");
+    // पहले से मौजूद कंटेंट के अंत में जोड़ा जाता है, कुछ भी मिटाया नहीं जाता
+    editor.innerHTML += (editor.innerHTML.trim() ? "<br><br>" : "") + text;
+    document.querySelectorAll(".modal-overlay").forEach(m => m.remove());
+  }catch(err){
+    showGlobalError("AI Paper Generator Error: " + err.message); // [बदलाव 16]
+    msgBox.innerHTML = '<div class="msg msg-error">Error: ' + err.message + '</div>';
+    btn.disabled = false;
+    btn.textContent = "✨ पेपर बनाएं";
+  }
+};
+
+window.savePaper = async function(shouldPrint){
+  const title = document.getElementById("paperTitle").value.trim();
+  const teacherName = document.getElementById("paperTeacherName").value.trim();
+  const instituteName = document.getElementById("paperInstitute").value.trim();
+  const mobile = document.getElementById("paperMobile").value.trim();
+  const regNo = document.getElementById("paperRegNo").value.trim();
+  const diseCode = document.getElementById("paperDiseCode").value.trim();
+  const address = document.getElementById("paperAddress").value.trim();
+  const content = document.getElementById("editorArea").innerHTML;
+  const watermark = document.getElementById("paperWatermark").value.trim();
+  const msgBox = document.getElementById("paperMsg");
+
+  if(!currentTeacher){ msgBox.innerHTML = '<div class="msg msg-error">कृपया पहले लॉगिन करें</div>'; return; }
+  if(!title){ msgBox.innerHTML = '<div class="msg msg-error">कृपया Paper Title डालें</div>'; return; }
+
+  try{
+    await window.__fs.addDoc(window.__fs.collection(window.__db, "papers"), {
+      teacherRegNo: currentTeacher.regNo,
+      teacherName, instituteName, mobile, registrationNumber: regNo, diseCode, address,
+      title, htmlContent: content,
+      createdAt: new Date().toISOString()
+    });
+    await window.__fs.updateDoc(window.__fs.doc(window.__db, "teachers", currentTeacher.regNo), { papersCount: window.__fs.increment(1) });
+    msgBox.innerHTML = '<div class="msg msg-success">Paper सफलतापूर्वक Save हो गया ✅</div>';
+
+    if(shouldPrint){
+      printRaw(paperPrintHtml(title, instituteName, teacherName, mobile, regNo, diseCode, address, content, watermark));
+    }
+  }catch(err){
+    msgBox.innerHTML = '<div class="msg msg-error">Error: ' + err.message + '</div>';
+  }
+};
+
+// ---- Shared print helpers: watermark + auto teacher-info line at the top ----
+function watermarkHtml(text){
+  // Free plan: watermark कभी हटा नहीं सकते — teacher ने जो भी डाला हो, उसके साथ या उसकी जगह
+  // हमेशा "FREE VERSION" watermark भी दिखेगा। Premium plan में teacher की मर्ज़ी वाला
+  // watermark (या कोई watermark नहीं) चलता है।
+  if(!isPremium()){
+    const shown = text ? (text + " • " + FORCED_FREE_WATERMARK) : FORCED_FREE_WATERMARK;
+    return `<div class="print-watermark">${escapeHtml(shown)}</div>`;
+  }
+  if(!text) return "";
+  return `<div class="print-watermark">${escapeHtml(text)}</div>`;
+}
+function topTeacherLineHtml(teacherName, mobile){
+  if(!teacherName && !mobile) return "";
+  return `<div class="print-top-teacher-line">${escapeHtml(teacherName || "")}${mobile ? " &nbsp;|&nbsp; Mobile: " + escapeHtml(mobile) : ""}</div>`;
+}
+// ---- [बदलाव 3] "Powered by" ब्रांडिंग लाइन — Viral Loop ----
+// Free plan वालों के हर print/PDF के सबसे नीचे छोटे अक्षरों में यह लाइन अपने आप जुड़ जाती है,
+// ताकि जब वह पेपर दूसरे टीचर/स्टूडेंट के हाथ लगे तो उन्हें ऐप के बारे में पता चले।
+// Premium वालों के लिए यह लाइन नहीं दिखाई जाती (जैसे watermark के साथ भी होता है)।
+function poweredByFooterHtml(){
+  if(isPremium()) return "";
+  return `<div class="print-powered-footer">Powered by ${escapeHtml(APP_BRAND_NAME)} • ${escapeHtml(APP_BRAND_URL)}</div>`;
+}
+
+function paperPrintHtml(title, instituteName, teacherName, mobile, regNo, diseCode, address, content, watermark, forPrint){
+  if(forPrint === undefined) forPrint = true;
+  return `
+    <div class="print-sheet">
+      ${forPrint ? watermarkHtml(watermark) : ""}
+      ${topTeacherLineHtml(teacherName, mobile)}
+      <div class="print-header-band">
+        <div><b>${escapeHtml(instituteName)}</b>${diseCode ? " (DISE: " + escapeHtml(diseCode) + ")" : ""}</div>
+        <div>Reg No: ${escapeHtml(regNo)}</div>
+      </div>
+      <h2>${escapeHtml(title)}</h2>
+      <div>${content}</div>
+      <div class="print-footer-band">Teacher: ${escapeHtml(teacherName)} &nbsp;|&nbsp; Mobile: ${escapeHtml(mobile)} &nbsp;|&nbsp; Address: ${escapeHtml(address)}</div>
+      ${forPrint ? poweredByFooterHtml() : ""}
+    </div>
+  `;
+}
+
+
+/* =====================================================================
+   PART 5: MARK SHEET CREATION (dynamic subjects, calculation, save/print)
+   ===================================================================== */
+let subjectRowCount = 0;
+
+window.addSubjectRow = function(name, max, obtained){
+  subjectRowCount++;
+  const id = "subjrow_" + subjectRowCount;
+  const wrap = document.getElementById("subjectsWrap");
+  const row = document.createElement("div");
+  row.className = "subject-row";
+  row.id = id;
+  row.innerHTML = `
+    <input type="text" placeholder="Subject Name" class="subj-name" value="${escapeAttr(name)}">
+    <input type="number" placeholder="Max Marks" class="subj-max" value="${max !== '' ? max : ''}">
+    <input type="number" placeholder="Obtained" class="subj-obt" value="${obtained !== '' ? obtained : ''}">
+    <button class="btn btn-danger btn-sm" onclick="document.getElementById('${id}').remove()">✕</button>
+  `;
+  wrap.appendChild(row);
+};
+
+function setupDefaultSubjects(){
+  document.getElementById("subjectsWrap").innerHTML = "";
+  subjectRowCount = 0;
+  const defaults = ["English","Hindi","Mathematics","Science","Sanskrit","Drawing"];
+  defaults.forEach(s => addSubjectRow(s, 100, ""));
+}
+
+window.toggleCustomExam = function(){
+  const val = document.getElementById("msExamType").value;
+  document.getElementById("msCustomExamBox").classList.toggle("hidden", val !== "Custom");
+};
+
+window.openMarksheetScreen = function(){
+  setupDefaultSubjects();
+  document.getElementById("msPreviewCard").classList.add("hidden");
+  document.getElementById("msMsg").innerHTML = "";
+  applyProfileAutofill({
+    teacherName: "msTeacherName", mobile: "msMobile", regNo: "msRegNo",
+    diseBox: "msDiseBox2", diseCode: "msDiseCode2", address: "msAddress"
+  });
+  if(currentTeacher) document.getElementById("msSchoolName").value = currentTeacher.instituteName || "";
+  if(currentTeacher) document.getElementById("msDiscCode").value = currentTeacher.diseCode || "";
+  showScreen("screenMarksheet");
+};
+
+function collectSubjects(wrapId){
+  const rows = document.querySelectorAll("#" + wrapId + " .subject-row");
+  const subjects = [];
+  rows.forEach(r => {
+    const name = r.querySelector(".subj-name").value.trim();
+    const max = parseFloat(r.querySelector(".subj-max").value) || 0;
+    const obtained = parseFloat(r.querySelector(".subj-obt").value) || 0;
+    if(name) subjects.push({ name, max, obtained });
+  });
+  return subjects;
+}
+
+function buildMarksheetData(){
+  const examType = document.getElementById("msExamType").value === "Custom"
+    ? document.getElementById("msCustomExam").value.trim()
+    : document.getElementById("msExamType").value;
+
+  const subjects = collectSubjects("subjectsWrap");
+  const totalMax = subjects.reduce((a,s)=>a+s.max,0);
+  const totalObtained = subjects.reduce((a,s)=>a+s.obtained,0);
+  const percentage = totalMax > 0 ? ((totalObtained/totalMax)*100) : 0;
+  const passPercentage = parseFloat(document.getElementById("msPassPercent").value) || 33;
+  const result = percentage >= passPercentage ? "Pass" : "Fail";
+
+  return {
+    teacherName: document.getElementById("msTeacherName").value.trim(),
+    teacherMobile: document.getElementById("msMobile").value.trim(),
+    registrationNumber: document.getElementById("msRegNo").value.trim(),
+    teacherDiseCode: document.getElementById("msDiseCode2").value.trim(),
+    teacherAddress: document.getElementById("msAddress").value.trim(),
+    studentName: document.getElementById("msStudentName").value.trim(),
+    fatherName: document.getElementById("msFatherName").value.trim(),
+    motherName: document.getElementById("msMotherName").value.trim(),
+    class: document.getElementById("msClass").value.trim(),
+    rollNo: document.getElementById("msRollNo").value.trim(),
+    schoolName: document.getElementById("msSchoolName").value.trim(),
+    discCode: document.getElementById("msDiscCode").value.trim(),
+    examType, subjects, totalMax, totalObtained,
+    percentage: percentage.toFixed(2), passPercentage, result,
+    remarks: document.getElementById("msRemarks").value.trim(),
+    watermark: document.getElementById("msWatermark").value.trim()
+  };
+}
+
+function marksheetHtml(d, forPrint){
+  if(forPrint === undefined) forPrint = true;
+  let subjRows = d.subjects.map(s => `<tr><td>${escapeHtml(s.name)}</td><td>${s.max}</td><td>${s.obtained}</td></tr>`).join("");
+  return `
+    <div class="print-sheet">
+      ${forPrint ? watermarkHtml(d.watermark) : ""}
+      ${topTeacherLineHtml(d.teacherName, d.teacherMobile)}
+      <div class="print-header-band">
+        <div><b>${escapeHtml(d.schoolName || "School Name")}</b>${d.discCode ? " (DISE: " + escapeHtml(d.discCode) + ")" : ""}</div>
+        <div>Reg No: ${escapeHtml(d.registrationNumber||"")}</div>
+      </div>
+      <h2>${escapeHtml(d.schoolName || "School Name")}</h2>
+      <div class="sub">Mark Sheet - ${escapeHtml(d.examType || "")}</div>
+      <div class="print-details">
+        <div><b>Student Name:</b> ${escapeHtml(d.studentName)}</div>
+        <div><b>Roll No.:</b> ${escapeHtml(d.rollNo)}</div>
+        <div><b>Father's Name:</b> ${escapeHtml(d.fatherName)}</div>
+        <div><b>Class:</b> ${escapeHtml(d.class)}</div>
+        ${d.motherName ? `<div><b>Mother's Name:</b> ${escapeHtml(d.motherName)}</div>` : ""}
+        ${d.discCode ? `<div><b>Disc Code:</b> ${escapeHtml(d.discCode)}</div>` : ""}
+      </div>
+      <table>
+        <tr><th>Subject</th><th>Max Marks</th><th>Obtained Marks</th></tr>
+        ${subjRows}
+        <tr><td><b>Total</b></td><td><b>${d.totalMax}</b></td><td><b>${d.totalObtained}</b></td></tr>
+      </table>
+      <p style="margin-top:10px;"><b>Percentage:</b> ${d.percentage}% &nbsp; | &nbsp; <b>Pass Percentage:</b> ${d.passPercentage}%</p>
+      ${d.remarks ? `<p><b>Remarks:</b> ${escapeHtml(d.remarks)}</p>` : ""}
+      <div class="result-badge ${d.result === "Pass" ? "result-pass" : "result-fail"}">Result: ${d.result}</div>
+      <div class="sign-row"><div>Class Teacher Signature</div><div>Principal Signature</div></div>
+      <div class="print-footer-band">Teacher: ${escapeHtml(d.teacherName||"")} &nbsp;|&nbsp; Mobile: ${escapeHtml(d.teacherMobile||"")} &nbsp;|&nbsp; Address: ${escapeHtml(d.teacherAddress||"")}</div>
+      ${forPrint ? poweredByFooterHtml() : ""}
+    </div>
+  `;
+}
+
+window.calculateMarksheet = function(){
+  const d = buildMarksheetData();
+  if(!d.studentName || !d.rollNo){
+    document.getElementById("msMsg").innerHTML = '<div class="msg msg-error">कृपया Student Name और Roll No भरें</div>';
+    return;
+  }
+  document.getElementById("msPreviewContent").innerHTML = marksheetHtml(d, false);
+  document.getElementById("msPreviewCard").classList.remove("hidden");
+  document.getElementById("msMsg").innerHTML = "";
+};
+
+window.saveMarksheet = async function(shouldPrint){
+  const msgBox = document.getElementById("msMsg");
+  if(!currentTeacher){ msgBox.innerHTML = '<div class="msg msg-error">कृपया पहले लॉगिन करें</div>'; return; }
+
+  const d = buildMarksheetData();
+  if(!d.studentName || !d.rollNo || !d.class){
+    msgBox.innerHTML = '<div class="msg msg-error">कृपया Student Name, Roll No और Class भरें</div>';
+    return;
+  }
+
+  try{
+    await window.__fs.addDoc(window.__fs.collection(window.__db, "marksheets"), {
+      ...d,
+      teacherRegNo: currentTeacher.regNo,
+      createdAt: new Date().toISOString()
+    });
+    await window.__fs.updateDoc(window.__fs.doc(window.__db, "teachers", currentTeacher.regNo), { marksheetsCount: window.__fs.increment(1) });
+    msgBox.innerHTML = '<div class="msg msg-success">Mark Sheet सफलतापूर्वक Save हो गई ✅</div>';
+    document.getElementById("msPreviewContent").innerHTML = marksheetHtml(d, false);
+    document.getElementById("msPreviewCard").classList.remove("hidden");
+
+    if(shouldPrint){
+      printRaw(marksheetHtml(d));
+    }
+  }catch(err){
+    msgBox.innerHTML = '<div class="msg msg-error">Error: ' + err.message + '</div>';
+  }
+};
+
+
+/* =====================================================================
+   PART 6: TEST MODE RESULT (Result Maker)
+   ===================================================================== */
+let trAvailableStudents = [];   // students in the chosen class, not yet saved this session
+let trSessionResults = [];      // results saved in this session, awaiting Confirm/Print
+let trActiveStudent = null;     // the student currently being marked
+let trSubjectRowCount = 0;
+
+const TEST_SUBJECT_PREF_KEY = "teacherAppTestSubjectPref";
+
+window.openTestResultScreen = async function(){
+  if(!currentTeacher) return;
+  document.getElementById("trMsg").innerHTML = "";
+  document.getElementById("trMarksBox").classList.add("hidden");
+  document.getElementById("trClass").value = "";
+  document.getElementById("trSection").value = "";
+  document.getElementById("trWatermark").value = "";
+  document.getElementById("trTestDate").value = "";
+  document.getElementById("trSubjectModeSelect").value = "no";
+  // Subject Name: auto-fill from the last subject the teacher used, until they change it
+  document.getElementById("trSubjectName").value = localStorage.getItem(TEST_SUBJECT_PREF_KEY) || "";
+  toggleTRSubjectMode();
+  document.getElementById("trFinalActions").classList.add("hidden");
+  trSessionResults = [];
+  trActiveStudent = null;
+  applyProfileAutofill({
+    teacherName: "trTeacherName", instituteLabel: "trInstituteLabel", institute: "trInstitute",
+    mobile: "trMobile", regNo: "trRegNo", diseBox: "trDiseBox", diseCode: "trDiseCode", address: "trAddress"
+  });
+  await loadStudents(); // reuse students list loaded for this teacher
+  refreshAvailableStudents();
+  renderTRSavedList();
+  showScreen("screenTestResult");
+};
+
+// Persist the chosen Subject Name so future tests default to it automatically
+window.saveTestSubjectPreference = function(){
+  const val = document.getElementById("trSubjectName").value.trim();
+  if(val){
+    localStorage.setItem(TEST_SUBJECT_PREF_KEY, val);
+  } else {
+    localStorage.removeItem(TEST_SUBJECT_PREF_KEY);
+  }
+};
+
+// ---- Toggle between Multi-Subject and Single-Subject(whole class) test modes ----
+window.toggleTRSubjectMode = function(){
+  const isSingle = document.getElementById("trSubjectModeSelect").value === "yes";
+  document.getElementById("trSingleMaxBox").classList.toggle("hidden", !isSingle);
+  document.getElementById("trSubjectRequiredMark").classList.toggle("hidden", !isSingle);
+  document.getElementById("trMarksBox").classList.add("hidden");
+};
+
+window.refreshAvailableStudents = function(){
+  const cls = document.getElementById("trClass").value.trim().toLowerCase();
+  const savedIds = trSessionResults.map(r => r.studentId);
+  trAvailableStudents = allStudents.filter(s =>
+    (!cls || (s.class||"").toLowerCase() === cls) && !savedIds.includes(s.id)
+  );
+  const select = document.getElementById("trStudentSelect");
+  if(trAvailableStudents.length === 0){
+    select.innerHTML = `<option value="">-- कोई बच्चा उपलब्ध नहीं --</option>`;
+  } else {
+    select.innerHTML = trAvailableStudents.map(s =>
+      `<option value="${s.id}">${escapeAttr(s.name)} (Roll: ${escapeAttr(s.rollNo||"-")})</option>`
+    ).join("");
+  }
+};
+
+window.loadStudentForMarks = function(){
+  const studentId = document.getElementById("trStudentSelect").value;
+  const msgBox = document.getElementById("trMsg");
+  if(!studentId){
+    msgBox.innerHTML = '<div class="msg msg-error">कृपया एक Student चुनें</div>';
+    return;
+  }
+  trActiveStudent = allStudents.find(s => s.id === studentId);
+  if(!trActiveStudent) return;
+
+  const isSingle = document.getElementById("trSubjectModeSelect").value === "yes";
+
+  if(isSingle){
+    const subjectName = document.getElementById("trSubjectName").value.trim();
+    if(!subjectName){
+      msgBox.innerHTML = '<div class="msg msg-error">कृपया पहले ऊपर Subject Name भरें</div>';
+      trActiveStudent = null;
+      return;
+    }
+  }
+
+  msgBox.innerHTML = "";
+  document.getElementById("trActiveStudentLabel").textContent = trActiveStudent.name + " (Roll: " + (trActiveStudent.rollNo||"-") + ")";
+
+  if(isSingle){
+    // Single subject, whole-class mode: only ask for Obtained Marks; Max Marks pre-filled but editable.
+    document.getElementById("trSubjectsWrap").innerHTML = "";
+    document.getElementById("trSubjectsWrap").classList.add("hidden");
+    document.getElementById("trAddSubjectBtn").classList.add("hidden");
+    document.getElementById("trSingleObtainedRow").classList.remove("hidden");
+    document.getElementById("trSingleObtainedMax").value = document.getElementById("trSingleMaxMarks").value || 100;
+    document.getElementById("trSingleObtainedMarks").value = "";
+  } else {
+    document.getElementById("trSubjectsWrap").classList.remove("hidden");
+    document.getElementById("trAddSubjectBtn").classList.remove("hidden");
+    document.getElementById("trSingleObtainedRow").classList.add("hidden");
+    document.getElementById("trSubjectsWrap").innerHTML = "";
+    trSubjectRowCount = 0;
+    const defaults = ["English","Hindi","Mathematics","Science","Sanskrit"];
+    defaults.forEach(s => addTRSubjectRow(s, 100, ""));
+  }
+  document.getElementById("trMarksBox").classList.remove("hidden");
+};
+
+window.addTRSubjectRow = function(name, max, obtained){
+  trSubjectRowCount++;
+  const id = "trsubjrow_" + trSubjectRowCount;
+  const wrap = document.getElementById("trSubjectsWrap");
+  const row = document.createElement("div");
+  row.className = "subject-row";
+  row.id = id;
+  row.innerHTML = `
+    <input type="text" placeholder="Subject Name" class="subj-name" value="${escapeAttr(name)}">
+    <input type="number" placeholder="Max Marks" class="subj-max" value="${max !== '' ? max : ''}">
+    <input type="number" placeholder="Obtained" class="subj-obt" value="${obtained !== '' ? obtained : ''}">
+    <button class="btn btn-danger btn-sm" onclick="document.getElementById('${id}').remove()">✕</button>
+  `;
+  wrap.appendChild(row);
+};
+
+window.saveStudentResult = function(){
+  const msgBox = document.getElementById("trMsg");
+  if(!appSettings.resultSubmissionOpen){
+    msgBox.innerHTML = '<div class="msg msg-error">🔴 Admin ने अभी Result Submission बंद कर रखा है। कृपया बाद में कोशिश करें।</div>';
+    return;
+  }
+  if(!trActiveStudent){
+    msgBox.innerHTML = '<div class="msg msg-error">कृपया पहले एक Student Load करें</div>';
+    return;
+  }
+  const isSingle = document.getElementById("trSubjectModeSelect").value === "yes";
+  let subjects;
+  if(isSingle){
+    const subjectName = document.getElementById("trSubjectName").value.trim();
+    const max = parseFloat(document.getElementById("trSingleObtainedMax").value);
+    const obtained = parseFloat(document.getElementById("trSingleObtainedMarks").value);
+    if(!subjectName || isNaN(max) || isNaN(obtained)){
+      msgBox.innerHTML = '<div class="msg msg-error">कृपया Subject Name, Max Marks और Obtained Marks भरें</div>';
+      return;
+    }
+    subjects = [{ name: subjectName, max, obtained }];
+  } else {
+    subjects = collectSubjects("trSubjectsWrap");
+    if(subjects.length === 0){
+      msgBox.innerHTML = '<div class="msg msg-error">कृपया कम से कम एक Subject के नंबर डालें</div>';
+      return;
+    }
+  }
+  const totalMax = subjects.reduce((a,s)=>a+s.max,0);
+  const totalObtained = subjects.reduce((a,s)=>a+s.obtained,0);
+  const percentage = totalMax > 0 ? ((totalObtained/totalMax)*100) : 0;
+  const passPercentage = parseFloat(document.getElementById("trPassPercent").value) || 33;
+  const result = percentage >= passPercentage ? "Pass" : "Fail";
+
+  trSessionResults.push({
+    studentId: trActiveStudent.id,
+    studentName: trActiveStudent.name,
+    fatherName: trActiveStudent.fatherName || "",
+    rollNo: trActiveStudent.rollNo || "",
+    class: document.getElementById("trClass").value.trim(),
+    section: document.getElementById("trSection").value.trim(),
+    examType: document.getElementById("trExamType").value,
+    testSubject: document.getElementById("trSubjectName").value.trim(),
+    testDate: document.getElementById("trTestDate").value.trim(),
+    subjects, totalMax, totalObtained,
+    percentage: percentage.toFixed(2), passPercentage, result
+  });
+
+  // remove this student from dropdown so they cannot be selected again
+  trActiveStudent = null;
+  document.getElementById("trMarksBox").classList.add("hidden");
+  document.getElementById("trStudentSelect").value = "";
+  refreshAvailableStudents();
+  renderTRSavedList();
+  msgBox.innerHTML = '<div class="msg msg-success">Student का Result Save हो गया ✅</div>';
+};
+
+function renderTRSavedList(){
+  const wrap = document.getElementById("trSavedListWrap");
+  const hasAny = trSessionResults.length > 0;
+  document.getElementById("trConfirmBtn").disabled = !hasAny;
+  document.getElementById("trShareBtn").disabled = !hasAny;
+  document.getElementById("trPublicBtn").disabled = !hasAny;
+  document.getElementById("trFinalActions").classList.toggle("hidden", !hasAny);
+
+  if(trSessionResults.length === 0){
+    wrap.innerHTML = '<p style="color:#8892a0;">अभी तक कोई बच्चा Save नहीं हुआ।</p>';
+    return;
+  }
+  wrap.innerHTML = `<table class="list-table"><tr><th>Name</th><th>Roll No</th><th>Total</th><th>%</th><th>Result</th><th>Action</th></tr>` +
+    trSessionResults.map((r, idx) => `<tr>
+      <td>${escapeHtml(r.studentName)}</td>
+      <td>${escapeHtml(r.rollNo||"-")}</td>
+      <td>${r.totalObtained}/${r.totalMax}</td>
+      <td>${r.percentage}%</td>
+      <td><span class="badge ${r.result==='Pass'?'badge-pass':'badge-fail'}">${r.result}</span></td>
+      <td><button class="btn btn-danger btn-sm" onclick="removeTRSaved(${idx})">Remove</button></td>
+    </tr>`).join("") + `</table>`;
+}
+
+window.removeTRSaved = function(idx){
+  trSessionResults.splice(idx, 1);
+  refreshAvailableStudents();
+  renderTRSavedList();
+};
+
+window.shareTestResults = async function(){
+  if(trSessionResults.length === 0) return;
+  const instituteName = document.getElementById("trInstitute").value.trim();
+  const lines = trSessionResults.map(r =>
+    `${r.studentName} (Roll ${r.rollNo||"-"}) — ${r.totalObtained}/${r.totalMax} (${r.percentage}%) — ${r.result}`
+  );
+  const text = `${instituteName} — Test Result\n` + lines.join("\n");
+  if(navigator.share){
+    try{ await navigator.share({ title: "Test Result", text }); }catch(e){ /* user cancelled */ }
+  } else {
+    try{
+      await navigator.clipboard.writeText(text);
+      alert("Share उपलब्ध नहीं है — Result Clipboard में Copy कर दिया गया है।");
+    }catch(e){
+      alert(text);
+    }
+  }
+};
+
+window.confirmAndPrintTestResults = async function(){
+  const msgBox = document.getElementById("trMsg");
+  if(trSessionResults.length === 0) return;
+  if(!appSettings.resultSubmissionOpen){
+    msgBox.innerHTML = '<div class="msg msg-error">🔴 Admin ने अभी Result Submission बंद कर रखा है। कृपया बाद में कोशिश करें।</div>';
+    return;
+  }
+
+  const teacherName = document.getElementById("trTeacherName").value.trim();
+  const instituteName = document.getElementById("trInstitute").value.trim();
+  const mobile = document.getElementById("trMobile").value.trim();
+  const regNo = document.getElementById("trRegNo").value.trim();
+  const diseCode = document.getElementById("trDiseCode").value.trim();
+  const address = document.getElementById("trAddress").value.trim();
+  const watermark = document.getElementById("trWatermark").value.trim();
+
+  try{
+    for(const r of trSessionResults){
+      await window.__fs.addDoc(window.__fs.collection(window.__db, "testResults"), {
+        ...r,
+        teacherRegNo: regNo, teacherName, instituteName, mobile, diseCode, address,
+        public: true,
+        createdAt: new Date().toISOString()
+      });
+    }
+    await window.__fs.updateDoc(window.__fs.doc(window.__db, "teachers", currentTeacher.regNo), { testResultsCount: window.__fs.increment(trSessionResults.length) });
+
+    const printHtml = trSessionResults.map(r => testResultPrintHtml(r, { teacherName, instituteName, mobile, regNo, diseCode, address, watermark })).join("");
+    printRaw(printHtml);
+
+    msgBox.innerHTML = '<div class="msg msg-success">सभी Results Public हो गए हैं और Print के लिए भेज दिए गए हैं ✅</div>';
+    trSessionResults = [];
+    refreshAvailableStudents();
+    renderTRSavedList();
+  }catch(err){
+    msgBox.innerHTML = '<div class="msg msg-error">Error: ' + err.message + '</div>';
+  }
+};
+
+function testResultPrintHtml(r, t){
+  let subjRows = r.subjects.map(s => `<tr><td>${escapeHtml(s.name)}</td><td>${s.max}</td><td>${s.obtained}</td></tr>`).join("");
+  return `
+    <div class="print-sheet">
+      ${watermarkHtml(t.watermark)}
+      ${topTeacherLineHtml(t.teacherName, t.mobile)}
+      <div class="print-header-band">
+        <div><b>${escapeHtml(t.instituteName)}</b>${t.diseCode ? " (DISE: " + escapeHtml(t.diseCode) + ")" : ""}</div>
+        <div>Reg No: ${escapeHtml(t.regNo)}</div>
+      </div>
+      <h2>${escapeHtml(t.instituteName)}</h2>
+      <div class="sub">Test Result - ${escapeHtml(r.examType || "")}${r.testSubject ? " (" + escapeHtml(r.testSubject) + ")" : ""}</div>
+      <div class="print-details">
+        <div><b>Student Name:</b> ${escapeHtml(r.studentName)}</div>
+        <div><b>Roll No.:</b> ${escapeHtml(r.rollNo)}</div>
+        <div><b>Father's Name:</b> ${escapeHtml(r.fatherName)}</div>
+        <div><b>Class:</b> ${escapeHtml(r.class)} &nbsp; <b>Section:</b> ${escapeHtml(r.section)}</div>
+      </div>
+      <table>
+        <tr><th>Subject</th><th>Max Marks</th><th>Obtained Marks</th></tr>
+        ${subjRows}
+        <tr><td><b>Total</b></td><td><b>${r.totalMax}</b></td><td><b>${r.totalObtained}</b></td></tr>
+      </table>
+      <p style="margin-top:10px;"><b>Percentage:</b> ${r.percentage}% &nbsp; | &nbsp; <b>Pass Percentage:</b> ${r.passPercentage}%</p>
+      <div class="result-badge ${r.result === "Pass" ? "result-pass" : "result-fail"}">Result: ${r.result}</div>
+      <div class="sign-row"><div>Class Teacher Signature</div><div>Principal Signature</div></div>
+      <div class="print-footer-band">Teacher: ${escapeHtml(t.teacherName)} &nbsp;|&nbsp; Mobile: ${escapeHtml(t.mobile)} &nbsp;|&nbsp; Address: ${escapeHtml(t.address)}</div>
+      ${poweredByFooterHtml()}
+    </div>
+  `;
+}
+
+
+/* =====================================================================
+   PART 7: HISTORY + RESULT/MARKSHEET CHECK
+   ===================================================================== */
+let historyUnlocked = false;
+let currentHistoryTab = "papers";
+let historyPapers = [];
+let historyMarksheets = [];
+let historyTestResults = [];
+
+// NOTE: History used to be gated behind re-entering the teacher's plaintext
+// Firestore password, which is both insecure and no longer possible now that
+// passwords live only in Firebase Auth. Reaching this screen already requires
+// a live, verified Firebase Auth session (see onAuthStateChanged above), so
+// that session is the real security boundary -- no extra password prompt needed.
+window.openHistoryScreen = async function(){
+  if(!currentTeacher) return;
+  historyUnlocked = true;
+  document.getElementById("historyContentWrap").classList.remove("hidden");
+  showScreen("screenHistory");
+  await loadHistoryData();
+  renderHistoryList();
+};
+
+async function loadHistoryData(){
+  const papersQ = window.__fs.query(
+    window.__fs.collection(window.__db, "papers"),
+    window.__fs.where("teacherRegNo", "==", currentTeacher.regNo)
+  );
+  const msQ = window.__fs.query(
+    window.__fs.collection(window.__db, "marksheets"),
+    window.__fs.where("teacherRegNo", "==", currentTeacher.regNo)
+  );
+  const trQ = window.__fs.query(
+    window.__fs.collection(window.__db, "testResults"),
+    window.__fs.where("teacherRegNo", "==", currentTeacher.regNo)
+  );
+  const [papersSnap, msSnap, trSnap] = await Promise.all([
+    window.__fs.getDocs(papersQ), window.__fs.getDocs(msQ), window.__fs.getDocs(trQ)
+  ]);
+  historyPapers = papersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  historyMarksheets = msSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  historyTestResults = trSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  historyPapers.sort((a,b)=> (b.createdAt||"").localeCompare(a.createdAt||""));
+  historyMarksheets.sort((a,b)=> (b.createdAt||"").localeCompare(a.createdAt||""));
+  historyTestResults.sort((a,b)=> (b.createdAt||"").localeCompare(a.createdAt||""));
+}
+
+/* =====================================================================
+   [बदलाव 24] CLASS PERFORMANCE ANALYTICS (Graphs)
+   Mark Sheet व Test Result — दोनों collections से डेटा जोड़कर हर Class का
+   Average %, Pass/Fail अनुपात, और विषय-वार औसत निकालता है। दोनों collections
+   में subjects हमेशा {name, max, obtained} के array के रूप में सेव होते हैं,
+   इसलिए दोनों को एक जैसा मानकर जोड़ा जा सकता है।
+   ===================================================================== */
+let anPassFailChartInstance = null;
+let anSubjectChartInstance = null;
+
+window.openAnalyticsScreen = async function(){
+  if(!currentTeacher) return;
+  document.getElementById("anMsg").innerHTML = '<div class="msg msg-info">Data लोड हो रहा है...</div>';
+  document.getElementById("anResultsWrap").classList.add("hidden");
+  showScreen("screenAnalytics");
+  await loadHistoryData(); // historyMarksheets व historyTestResults भर देता है
+  document.getElementById("anMsg").innerHTML = "";
+
+  const allRecords = [...historyMarksheets, ...historyTestResults];
+  const classes = [...new Set(allRecords.map(r => (r.class || "").trim()).filter(Boolean))].sort();
+  const select = document.getElementById("anClassSelect");
+
+  if(classes.length === 0){
+    select.innerHTML = "";
+    document.getElementById("anMsg").innerHTML = '<div class="msg msg-info">अभी तक कोई Mark Sheet या Test Result सेव नहीं हुआ है — पहले कुछ Mark Sheet/Test Result बनाएं, फिर यहाँ Analytics दिखेगा।</div>';
+    return;
+  }
+
+  select.innerHTML = `<option value="__all__">सभी Classes (मिलाकर)</option>` +
+    classes.map(c => `<option value="${escapeAttr(c)}">${escapeHtml(c)}</option>`).join("");
+  renderAnalytics();
+};
+
+window.renderAnalytics = function(){
+  const selectedClass = document.getElementById("anClassSelect").value;
+  const allRecords = [...historyMarksheets, ...historyTestResults];
+  const records = selectedClass === "__all__"
+    ? allRecords
+    : allRecords.filter(r => (r.class || "").trim() === selectedClass);
+
+  document.getElementById("anResultsWrap").classList.toggle("hidden", records.length === 0);
+  if(records.length === 0){
+    document.getElementById("anMsg").innerHTML = '<div class="msg msg-info">इस Class के लिए अभी कोई Record नहीं मिला।</div>';
+    return;
+  }
+  document.getElementById("anMsg").innerHTML = "";
+
+  // ---- Class Average % और Pass/Fail गिनती ----
+  const percentages = records.map(r => parseFloat(r.percentage) || 0);
+  const classAverage = percentages.reduce((a,b)=>a+b,0) / percentages.length;
+  const passCount = records.filter(r => r.result === "Pass").length;
+  const failCount = records.length - passCount;
+  const passPercent = (passCount / records.length) * 100;
+
+  // ---- विषय-वार औसत प्रतिशत (हर विषय के obtained/max का औसत %, ताकि अलग-अलग Max Marks वाले विषय भी सही तुलना हों) ----
+  const subjectTotals = {}; // { subjectName: { sumPercent, count } }
+  records.forEach(r => {
+    (r.subjects || []).forEach(s => {
+      if(!s.name || !s.max) return;
+      const pct = (s.obtained / s.max) * 100;
+      if(!subjectTotals[s.name]) subjectTotals[s.name] = { sum: 0, count: 0 };
+      subjectTotals[s.name].sum += pct;
+      subjectTotals[s.name].count += 1;
+    });
+  });
+  const subjectNames = Object.keys(subjectTotals);
+  const subjectAverages = subjectNames.map(name => subjectTotals[name].sum / subjectTotals[name].count);
+  let weakestSubject = "-";
+  if(subjectNames.length){
+    const minIdx = subjectAverages.indexOf(Math.min(...subjectAverages));
+    weakestSubject = subjectNames[minIdx];
+  }
+
+  document.getElementById("anTotalRecords").textContent = records.length;
+  document.getElementById("anClassAverage").textContent = classAverage.toFixed(1) + "%";
+  document.getElementById("anPassPercent").textContent = passPercent.toFixed(1) + "%";
+  document.getElementById("anWeakSubject").textContent = weakestSubject;
+
+  // ---- Pass/Fail Doughnut Chart ----
+  const pfCtx = document.getElementById("anPassFailChart");
+  if(anPassFailChartInstance) anPassFailChartInstance.destroy(); // पुराना चार्ट हटाना ज़रूरी है, वरना Canvas दोबारा इस्तेमाल नहीं हो पाता
+  anPassFailChartInstance = new Chart(pfCtx, {
+    type: "doughnut",
+    data: {
+      labels: ["Pass (" + passCount + ")", "Fail (" + failCount + ")"],
+      datasets: [{ data: [passCount, failCount], backgroundColor: ["#1e8e5a", "#d9364a"] }]
+    },
+    options: { plugins: { legend: { position: "bottom" } } }
+  });
+
+  // ---- Subject-wise Average Bar Chart ----
+  const subCtx = document.getElementById("anSubjectChart");
+  if(anSubjectChartInstance) anSubjectChartInstance.destroy();
+  anSubjectChartInstance = new Chart(subCtx, {
+    type: "bar",
+    data: {
+      labels: subjectNames,
+      datasets: [{
+        label: "औसत %",
+        data: subjectAverages.map(v => v.toFixed(1)),
+        backgroundColor: subjectAverages.map(v => v < 40 ? "#d9364a" : v < 60 ? "#f0a500" : "#1e8e5a")
+      }]
+    },
+    options: {
+      indexAxis: "y",
+      scales: { x: { min: 0, max: 100 } },
+      plugins: { legend: { display: false } }
+    }
+  });
+};
+
+window.switchHistoryTab = function(tab){
+  currentHistoryTab = tab;
+  document.getElementById("tabPapers").classList.toggle("active", tab === "papers");
+  document.getElementById("tabMarksheets").classList.toggle("active", tab === "marksheets");
+  document.getElementById("tabTestResults").classList.toggle("active", tab === "testresults");
+  renderHistoryList();
+};
+
+window.renderHistoryList = function(){
+  const search = (document.getElementById("historySearch").value || "").toLowerCase();
+  const wrap = document.getElementById("historyListWrap");
+
+  if(currentHistoryTab === "papers"){
+    const filtered = historyPapers.filter(p =>
+      (p.title||"").toLowerCase().includes(search)
+    );
+    if(filtered.length === 0){ wrap.innerHTML = "<p>कोई Paper नहीं मिला।</p>"; return; }
+    wrap.innerHTML = `<table class="list-table"><tr><th>Title</th><th>Date</th><th>Action</th></tr>` +
+      filtered.map(p => `<tr>
+        <td>${escapeHtml(p.title)}</td>
+        <td>${formatDate(p.createdAt)}</td>
+        <td>
+          <button class="btn btn-outline btn-sm" onclick="viewPaper('${p.id}')">View</button>
+          <button class="btn btn-danger btn-sm" onclick="deletePaper('${p.id}')">Delete</button>
+        </td>
+      </tr>`).join("") + `</table>`;
+  } else if(currentHistoryTab === "marksheets"){
+    const filtered = historyMarksheets.filter(m =>
+      (m.studentName||"").toLowerCase().includes(search) ||
+      (m.class||"").toLowerCase().includes(search) ||
+      (m.rollNo||"").toLowerCase().includes(search)
+    );
+    if(filtered.length === 0){ wrap.innerHTML = "<p>कोई Mark Sheet नहीं मिली।</p>"; return; }
+    wrap.innerHTML = `<table class="list-table"><tr><th>Student</th><th>Class</th><th>Roll No</th><th>Result</th><th>Date</th><th>Action</th></tr>` +
+      filtered.map(m => `<tr>
+        <td>${escapeHtml(m.studentName)}</td>
+        <td>${escapeHtml(m.class)}</td>
+        <td>${escapeHtml(m.rollNo)}</td>
+        <td>${m.result}</td>
+        <td>${formatDate(m.createdAt)}</td>
+        <td>
+          <button class="btn btn-outline btn-sm" onclick="viewMarksheet('${m.id}')">View</button>
+          <button class="btn btn-accent btn-sm" onclick="printMarksheetById('${m.id}')">Print</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteMarksheet('${m.id}')">Delete</button>
+        </td>
+      </tr>`).join("") + `</table>`;
+  } else {
+    const filtered = historyTestResults.filter(r =>
+      (r.studentName||"").toLowerCase().includes(search) ||
+      (r.class||"").toLowerCase().includes(search) ||
+      (r.rollNo||"").toLowerCase().includes(search)
+    );
+    if(filtered.length === 0){ wrap.innerHTML = "<p>कोई Test Result नहीं मिला।</p>"; return; }
+    wrap.innerHTML = `<table class="list-table"><tr><th>Student</th><th>Class</th><th>Section</th><th>Roll No</th><th>Result</th><th>Date</th><th>Action</th></tr>` +
+      filtered.map(r => `<tr>
+        <td>${escapeHtml(r.studentName)}</td>
+        <td>${escapeHtml(r.class)}</td>
+        <td>${escapeHtml(r.section)}</td>
+        <td>${escapeHtml(r.rollNo)}</td>
+        <td>${r.result}</td>
+        <td>${formatDate(r.createdAt)}</td>
+        <td>
+          <button class="btn btn-accent btn-sm" onclick="printTestResultById('${r.id}')">Print</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteTestResult('${r.id}')">Delete</button>
+        </td>
+      </tr>`).join("") + `</table>`;
+  }
+};
+
+window.viewPaper = function(id){
+  const p = historyPapers.find(x => x.id === id);
+  if(!p) return;
+  openViewModal(paperPrintHtml(p.title, p.instituteName, p.teacherName, p.mobile, p.registrationNumber, p.diseCode, p.address, p.htmlContent, p.watermark, false));
+};
+
+window.deletePaper = async function(id){
+  if(!confirm("क्या आप इस Paper को Delete करना चाहते हैं?")) return;
+  await window.__fs.deleteDoc(window.__fs.doc(window.__db, "papers", id));
+  await loadHistoryData();
+  renderHistoryList();
+};
+
+window.viewMarksheet = function(id){
+  const m = historyMarksheets.find(x => x.id === id);
+  if(!m) return;
+  openViewModal(marksheetHtml(m, false));
+};
+
+window.printMarksheetById = function(id){
+  const m = historyMarksheets.find(x => x.id === id);
+  if(!m) return;
+  printRaw(marksheetHtml(m));
+};
+
+window.deleteMarksheet = async function(id){
+  if(!confirm("क्या आप इस Mark Sheet को Delete करना चाहते हैं?")) return;
+  await window.__fs.deleteDoc(window.__fs.doc(window.__db, "marksheets", id));
+  await loadHistoryData();
+  renderHistoryList();
+};
+
+window.printTestResultById = function(id){
+  const r = historyTestResults.find(x => x.id === id);
+  if(!r) return;
+  printRaw(testResultPrintHtml(r, { teacherName: r.teacherName, instituteName: r.instituteName, mobile: r.mobile, regNo: r.teacherRegNo, diseCode: r.diseCode, address: r.address }));
+};
+
+window.deleteTestResult = async function(id){
+  if(!confirm("क्या आप इस Test Result को Delete करना चाहते हैं?")) return;
+  await window.__fs.deleteDoc(window.__fs.doc(window.__db, "testResults", id));
+  await loadHistoryData();
+  renderHistoryList();
+};
+
+function openViewModal(innerHtml){
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `<div class="modal-box" style="max-width:700px;max-height:80vh;overflow:auto;">
+    ${innerHtml}
+    <div class="footer-actions"><button class="btn btn-outline btn-sm" onclick="this.closest('.modal-overlay').remove()">Close</button></div>
+  </div>`;
+  document.body.appendChild(overlay);
+}
+
+// ---- Result / Mark Sheet Check (search by roll no / class / school / disc code) ----
+window.openResultCheckScreen = function(){
+  document.getElementById("rcResultCard").classList.add("hidden");
+  document.getElementById("rcMsg").innerHTML = "";
+  showScreen("screenResultCheck");
+};
+
+window.searchResult = async function(){
+  triggerPopunderAd(); // [बदलाव 5] "Search Result" पर क्लिक करते ही Popunder/Interstitial Ad ट्रिगर
+  const rollNo = document.getElementById("rcRollNo").value.trim();
+  const cls = document.getElementById("rcClass").value.trim();
+  const school = document.getElementById("rcSchool").value.trim();
+  const discCode = document.getElementById("rcDiscCode").value.trim();
+  const msgBox = document.getElementById("rcMsg");
+  const resultCard = document.getElementById("rcResultCard");
+  resultCard.classList.add("hidden");
+  msgBox.innerHTML = "";
+
+  if(!rollNo || !cls || !school){
+    msgBox.innerHTML = '<div class="msg msg-error">कृपया Roll No, Class और School Name भरें</div>';
+    return;
+  }
+
+  try{
+    const q = window.__fs.query(
+      window.__fs.collection(window.__db, "marksheets"),
+      window.__fs.where("rollNo", "==", rollNo),
+      window.__fs.where("class", "==", cls)
+    );
+    const snap = await window.__fs.getDocs(q);
+    let found = null;
+    snap.forEach(docSnap => {
+      const data = docSnap.data();
+      if((data.schoolName||"").toLowerCase() === school.toLowerCase() &&
+        (!discCode || (data.discCode||"").toLowerCase() === discCode.toLowerCase())){
+        found = data;
+      }
+    });
+
+    if(found){
+      document.getElementById("rcResultContent").innerHTML = marksheetHtml(found, false);
+      resultCard.classList.remove("hidden");
+    } else {
+      msgBox.innerHTML = '<div class="msg msg-error">Result Not Found.</div>';
+    }
+  }catch(err){
+    msgBox.innerHTML = '<div class="msg msg-error">Error: ' + err.message + ' (Firestore Index की जरूरत हो सकती है, नीचे Console लिंक चेक करें)</div>';
+  }
+};
+
+
+/* =====================================================================
+   SHARED HELPERS (used across all parts above)
+   ===================================================================== */
+// ---- [बदलाव 4] LaTeX को असली Math Symbols में बदलने वाला मुख्य फ़ंक्शन ----
+// यह #printArea के अंदर मौजूद $...$ , $$...$$ , \(...\) और \[...\] के बीच लिखे
+// LaTeX कोड (जैसे \frac, \sqrt, \vert) को KaTeX की मदद से असली गणितीय
+// चिह्नों में रेंडर कर देता है। यह हमेशा window.print() से ठीक पहले चलाया
+// जाता है ताकि PDF/Print में raw कोड की जगह सुंदर फॉर्मूला दिखे।
+// fail-safe: अगर इंटरनेट न होने या CDN ब्लॉक होने की वजह से KaTeX लोड न हुई हो,
+// तो यह फ़ंक्शन चुपचाप कुछ नहीं करता — बाकी Print/PDF हमेशा की तरह काम करता रहेगा,
+// बस math कोड raw text जैसा दिखेगा (जैसा अभी हो रहा है)।
+function renderMathIn(container){
+  try{
+    if(typeof renderMathInElement === "function"){
+      renderMathInElement(container, {
+        delimiters: [
+          {left:"$$", right:"$$", display:true},
+          {left:"\\[", right:"\\]", display:true},
+          {left:"$", right:"$", display:false},
+          {left:"\\(", right:"\\)", display:false}
+        ],
+        throwOnError:false // गलत/अधूरे LaTeX कोड पर भी पूरा पेज crash न हो
+      });
+    }
+  }catch(err){
+    console.warn("KaTeX render नहीं हो पाया:", err.message);
+  }
+}
+
+function printRaw(html){
+  if(!canPrintNow()){ showUpgradeModal(); return; }
+  const area = document.getElementById("printArea");
+  area.innerHTML = html;
+  renderMathIn(area); // [बदलाव 4 का उपयोग] प्रिंट/PDF से पहले LaTeX को Math Symbols में बदलें
+  triggerPopunderAd(); // [बदलाव 5] "Save & Print" पर Popunder/Interstitial Ad ट्रिगर
+  window.print();
+  registerPrintUsage();
+}
+window.printFromElement = function(elId){
+  if(!canPrintNow()){ showUpgradeModal(); return; }
+  const area = document.getElementById("printArea");
+  area.innerHTML = document.getElementById(elId).innerHTML;
+  renderMathIn(area); // [बदलाव 4 का उपयोग] प्रिंट/PDF से पहले LaTeX को Math Symbols में बदलें
+  triggerPopunderAd(); // [बदलाव 5] "Save & Print" पर Popunder/Interstitial Ad ट्रिगर
+  window.print();
+  registerPrintUsage();
+};
+
+function escapeHtml(str){
+  if(!str) return "";
+  return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+function escapeAttr(str){
+  if(!str) return "";
+  return String(str).replace(/"/g,"&quot;");
+}
+function formatDate(iso){
+  if(!iso) return "-";
+  const d = new Date(iso);
+  return d.toLocaleDateString() + " " + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+}
+
+</script>
+<!-- [बदलाव 5] Sticky Bottom Banner — सभी स्क्रीन पर नीचे चिपका रहेगा, Print में @media print से छिप जाता है -->
+<div id="stickyAdBar" class="psb-ad-slot"></div>
+
+</body>
+</html>
